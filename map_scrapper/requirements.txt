@@ -1,0 +1,10 @@
+# Maps Scraper (gmaps_dashboard.py, gmaps_scraper.py, run_mumbai_scrape.py)
+# Pinned to the versions in the working Windows .venv (Python 3.14). Needs Python 3.10+.
+# After installing, run `scrapling install` once to download the browsers (setup.sh / setup.bat do this).
+scrapling[fetchers]==0.4.15
+flask==3.1.3
+playwright==1.63.0
+patchright==1.63.0
+curl_cffi==0.16.3
+browserforge==1.2.4
+lxml==6.1.3

@@ -1,0 +1,321 @@
+@import "tailwindcss";
+
+/* PDFCraft Design System - CSS Variables for Theming */
+:root {
+  /* Primary Colors - Deep Blue/Indigo for trust and modern tech feel */
+  --color-primary: 226 71% 55%; /* #3b82f6 - slightly more vibrant */
+  --color-primary-foreground: 0 0% 100%;
+  --color-primary-hover: 226 71% 45%;
+  
+  /* Secondary Colors - Slate for neutral elements */
+  --color-secondary: 215 20% 90%;
+  --color-secondary-foreground: 215 25% 15%;
+  --color-secondary-hover: 215 20% 80%;
+  
+  /* Accent Colors - Teal/Cyan for highlights */
+  --color-accent: 172 66% 50%;
+  --color-accent-foreground: 0 0% 100%;
+  
+  /* Background Colors */
+  --color-background: 210 40% 98%; /* Slightly off-white for depth */
+  --color-foreground: 222 47% 11%;
+  
+  /* Muted Colors */
+  --color-muted: 210 40% 96%;
+  --color-muted-foreground: 215 16% 47%;
+  
+  /* Card Colors */
+  --color-card: 0 0% 100%;
+  --color-card-foreground: 222 47% 11%;
+  
+  /* Border Colors */
+  --color-border: 214 32% 91%;
+  --color-input: 214 32% 91%;
+  --color-ring: 226 71% 55%;
+  
+  /* Destructive Colors */
+  --color-destructive: 0 84% 60%;
+  --color-destructive-foreground: 0 0% 100%;
+  
+  /* Success Colors */
+  --color-success: 142 76% 36%;
+  --color-success-foreground: 0 0% 100%;
+  
+  /* Warning Colors */
+  --color-warning: 38 92% 50%;
+  --color-warning-foreground: 0 0% 100%;
+  
+  /* Typography */
+  --font-sans: var(--font-inter, 'Inter'), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono, 'JetBrains Mono'), 'Fira Code', Consolas, monospace;
+  
+  /* Spacing Scale */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+  
+  /* Shadows - Layered, smoother shadows for depth */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  
+  /* Transitions */
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 350ms;
+}
+
+/* Dark Mode Theme */
+.dark {
+  color-scheme: dark;
+  --color-primary: 226 71% 60%;
+  --color-primary-foreground: 222 47% 11%;
+  --color-primary-hover: 226 71% 70%;
+  
+  --color-secondary: 215 20% 20%;
+  --color-secondary-foreground: 210 40% 98%;
+  --color-secondary-hover: 215 20% 30%;
+  
+  --color-accent: 172 66% 50%;
+  --color-accent-foreground: 222 47% 11%;
+  
+  --color-background: 222 47% 7%; /* Darker background for more contrast */
+  --color-foreground: 210 40% 98%;
+  
+  --color-muted: 217 33% 13%;
+  --color-muted-foreground: 215 20% 65%;
+  
+  --color-card: 222 47% 10%;
+  --color-card-foreground: 210 40% 98%;
+  
+  --color-border: 217 33% 15%;
+  --color-input: 217 33% 15%;
+  --color-ring: 226 71% 60%;
+}
+
+/* Base Styles */
+* {
+  border-color: hsl(var(--color-border));
+}
+
+body {
+  background-color: hsl(var(--color-background));
+  color: hsl(var(--color-foreground));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base Styles for Form Elements */
+select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea {
+  background-color: hsl(var(--color-background));
+  color: hsl(var(--color-foreground));
+}
+
+select option {
+  background-color: hsl(var(--color-background));
+  color: hsl(var(--color-foreground));
+}
+
+/* Utility Classes using CSS Variables */
+@theme {
+  /* Colors */
+  --color-primary: hsl(var(--color-primary));
+  --color-primary-foreground: hsl(var(--color-primary-foreground));
+  --color-secondary: hsl(var(--color-secondary));
+  --color-secondary-foreground: hsl(var(--color-secondary-foreground));
+  --color-accent: hsl(var(--color-accent));
+  --color-accent-foreground: hsl(var(--color-accent-foreground));
+  --color-background: hsl(var(--color-background));
+  --color-foreground: hsl(var(--color-foreground));
+  --color-muted: hsl(var(--color-muted));
+  --color-muted-foreground: hsl(var(--color-muted-foreground));
+  --color-card: hsl(var(--color-card));
+  --color-card-foreground: hsl(var(--color-card-foreground));
+  --color-border: hsl(var(--color-border));
+  --color-destructive: hsl(var(--color-destructive));
+  --color-destructive-foreground: hsl(var(--color-destructive-foreground));
+  --color-success: hsl(var(--color-success));
+  --color-success-foreground: hsl(var(--color-success-foreground));
+  --color-warning: hsl(var(--color-warning));
+  --color-warning-foreground: hsl(var(--color-warning-foreground));
+  
+  /* Border Radius */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  
+  /* Font Family */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* Focus Ring Utility */
+.focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid hsl(var(--color-ring));
+  box-shadow: 0 0 0 2px hsl(var(--color-background)), 0 0 0 4px hsl(var(--color-ring));
+}
+
+/* Global focus-visible styles */
+:focus-visible {
+  outline: 2px solid hsl(var(--color-ring));
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.4));
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Animations */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Gradient Text */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, hsl(var(--color-primary)), hsl(var(--color-accent)));
+}
+
+/* Screen reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only:focus,
+.sr-only:focus-visible {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* RTL Support - Simplified */
+[dir="rtl"] { text-align: right; }
+[dir="rtl"] .rtl\:flip { transform: scaleX(-1); }
+[dir="rtl"] .me-2 { margin-inline-end: 0.5rem; }
+[dir="rtl"] .ms-2 { margin-inline-start: 0.5rem; }
+
+/* Hebrew and RTL Language Support */
+/* Works on: Windows (Segoe UI), macOS (SF Pro Display/Arial), Linux (system fonts) */
+[lang="he"], [lang="ar"] {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'San Francisco', Arial, Helvetica, sans-serif;
+  direction: rtl;
+}
+
+/* Ensure Hebrew text in PDFs displays with proper fonts */
+.textLayer[dir="rtl"] span {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'San Francisco', Arial, Helvetica, sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--color-secondary) / 0.8);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--color-secondary-foreground) / 0.5);
+}
+
+/* Shimmer */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+}
+.scroll-smooth { scroll-behavior: smooth; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }

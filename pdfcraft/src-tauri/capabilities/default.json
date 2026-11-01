@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the main window",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://127.0.0.1:9527", "http://localhost:9527"]
+  },
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "fs:default",
+    "allow-open-files",
+    "allow-save-file",
+    "allow-read-file",
+    "allow-write-file",
+    "allow-get-temp-dir",
+    "allow-open-url",
+    "allow-get-system-printers",
+    "allow-print-pdf-file"
+  ]
+}

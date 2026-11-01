@@ -1,0 +1,164 @@
+'use client';
+
+import React, { forwardRef, HTMLAttributes } from 'react';
+
+export type CardSize = 'sm' | 'md' | 'lg';
+export type CardVariant = 'default' | 'elevated' | 'outlined';
+
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  size?: CardSize;
+  variant?: CardVariant;
+  hover?: boolean;
+  clickable?: boolean;
+}
+
+const sizeStyles: Record<CardSize, string> = {
+  sm: 'p-3',
+  md: 'p-4',
+  lg: 'p-6',
+};
+
+const variantStyles: Record<CardVariant, string> = {
+  default: `
+    bg-[hsl(var(--color-card))]
+    border border-[hsl(var(--color-border))]
+  `,
+  elevated: `
+    bg-[hsl(var(--color-card))]
+    shadow-[var(--shadow-md)]
+  `,
+  outlined: `
+    bg-transparent
+    border-2 border-[hsl(var(--color-border))]
+  `,
+};
+
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  (
+    {
+      children,
+      size = 'md',
+      variant = 'default',
+      hover = false,
+      clickable = false,
+      className = '',
+      ...props
+    },
+    ref
+  ) => {
+    const baseStyles = `
+      rounded-[var(--radius-lg)]
+      text-[hsl(var(--color-card-foreground))]
+      transition-all duration-[var(--transition-normal)]
+    `;
+
+    const hoverStyles = hover
+      ? `
+        hover:shadow-[var(--shadow-lg)]
+        hover:border-[hsl(var(--color-primary))]
+        hover:-translate-y-0.5
+      `
+      : '';
+
+    const clickableStyles = clickable
+      ? `
+        cursor-pointer
+        focus:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-[hsl(var(--color-ring))]
+        focus-visible:ring-offset-2
+      `
+      : '';
+
+    return (
+      <div
+        ref={ref}
+        className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${hoverStyles} ${clickableStyles} ${className}`.trim()}
+        tabIndex={clickable ? 0 : undefined}
+        role={clickable ? 'button' : undefined}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+
+Card.displayName = 'Card';
+
+// Card subcomponents for structured content
+export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
+
+export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
+  ({ children, className = '', ...props }, ref) => (
+    <div
+      ref={ref}
+      className={`mb-3 ${className}`.trim()}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+);
+
+CardHeader.displayName = 'CardHeader';
+
+export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+  children: React.ReactNode;
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+}
+
+export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
+  ({ children, as: Component = 'h3', className = '', ...props }, ref) => (
+    <Component
+      ref={ref}
+      className={`text-lg font-semibold text-[hsl(var(--color-card-foreground))] ${className}`.trim()}
+      {...props}
+    >
+      {children}
+    </Component>
+  )
+);
+
+CardTitle.displayName = 'CardTitle';
+
+export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
+
+export const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
+  ({ children, className = '', ...props }, ref) => (
+    <div
+      ref={ref}
+      className={`text-[hsl(var(--color-muted-foreground))] ${className}`.trim()}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+);
+
+CardContent.displayName = 'CardContent';
+
+export interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
+
+export const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
+  ({ children, className = '', ...props }, ref) => (
+    <div
+      ref={ref}
+      className={`mt-4 pt-3 border-t border-[hsl(var(--color-border))] ${className}`.trim()}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+);
+
+CardFooter.displayName = 'CardFooter';
+
+export default Card;

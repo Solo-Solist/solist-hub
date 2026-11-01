@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solist Hub</title>
+<script>try{document.documentElement.dataset.theme=localStorage.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){document.documentElement.dataset.theme="light"}</script>
+<style>
+/* same look as the Call Transcripts dashboard ("soft smart-home" style) */
+:root{--page:#e6e6ec;--bg:#f3f3f7;--card:#ffffff;--card2:#f1f1f5;--ink:#1c1c21;--mute:#8b8b96;--line:#e8e8ef;--acc:#f26b3a;--acc2:#f6a07e;--accs:#fde9e0;
+--ok:#21945a;--okbg:#e2f5ea;--bad:#e5484d;--badbg:#fde4e4;--warn:#c98a10;--shadow:0 1px 2px #1c1c210a,0 4px 14px #1c1c2108}
+[data-theme=dark]{--page:#050506;--bg:#111114;--card:#1b1b20;--card2:#25252b;--ink:#f2f2f6;--mute:#9a9aa6;--line:#2d2d34;--acc:#f47a4c;--acc2:#f6a07e;--accs:#3a2219;
+--ok:#5fd394;--okbg:#17321f;--bad:#ff6b5b;--badbg:#3d1714;--warn:#f0b43c;--shadow:none}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;overflow:hidden}
+.mute{color:var(--mute)}.sp{flex:1}a{color:var(--acc)}
+button,a.btn{font:inherit;padding:8px 14px;border:1px solid transparent;border-radius:999px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+button:hover,a.btn:hover{background:var(--card2)}button.p{background:var(--ink);color:var(--bg)}button.d{background:var(--acc);color:#fff}button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+/* top bar: Hub navigation */
+.topbar{flex:none;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--card);box-shadow:var(--shadow);position:relative;z-index:10}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;white-space:nowrap;cursor:pointer}
+.mark{display:grid;grid-template-columns:repeat(3,6px);gap:3px}.mark i{width:6px;height:6px;border-radius:50%;background:var(--acc);opacity:.85}.mark i:nth-child(even){background:#b794f6}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}.tabs::-webkit-scrollbar{display:none}
+.tab{position:relative;display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;background:none;box-shadow:none;color:var(--ink);font-weight:500;flex:none}
+.tab:hover{background:var(--card2)}.tab.on{background:var(--ink);color:var(--bg)}
+.tab i.sd{width:7px;height:7px;border-radius:50%;margin-left:2px}
+.ctrl{display:flex;align-items:center;gap:6px;flex:none}.ctrl button,.ctrl a.btn{padding:7px 12px;box-shadow:none;background:var(--card2)}.ctrl button:hover,.ctrl a.btn:hover{background:var(--line)}
+.ib{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;padding:0;border:0;background:var(--card2);box-shadow:none;color:var(--ink);font-size:15px;flex:none}
+.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#f6a07e,#b794f6);color:#fff;font-weight:700;flex:none}
+.menu{position:relative}.menu>div{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border-radius:18px;box-shadow:0 12px 40px #0003;padding:8px;min-width:240px;display:none;flex-direction:column;gap:2px;z-index:30}
+.menu.open>div{display:flex}.menu>div button{justify-content:flex-start;box-shadow:none;background:none;border-radius:12px;padding:9px 12px}.menu>div button:hover{background:var(--card2)}
+.menu>div small{color:var(--mute);padding:6px 12px 2px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+/* page */
+.stage{flex:1;min-height:0;position:relative;display:flex}
+.scroll{flex:1;overflow:auto;padding:22px}
+.frame{flex:1;display:flex;min-width:0}.frame iframe{border:0;width:100%;height:100%;background:var(--bg)}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--card);box-shadow:-10px 0 40px #0003;display:none;flex-direction:column;z-index:20;border-radius:24px 0 0 24px}
+.drawer.on{display:flex}.drawer header{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.wrap{max-width:1500px;margin:auto}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px}.ptitle{font-size:24px;font-weight:600;margin:0}.ptitle small{font-size:13px;font-weight:400;color:var(--mute);margin-left:8px}
+.banner{background:var(--badbg);color:var(--bad);padding:10px 18px;font-weight:600}
+.lbl{font-size:17px;font-weight:600;margin-right:6px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pills{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.pill2{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:999px;padding:8px 10px 8px 8px;box-shadow:var(--shadow);min-width:0;cursor:pointer}
+.pill2 b{display:block;font-size:14px;font-weight:600}.pill2 small{display:block;color:var(--mute);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.pic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;flex:none}
+.go{width:50px;height:28px;border-radius:999px;border:0;padding:0;background:var(--line);position:relative;font-size:0;box-shadow:inset 0 0 0 1px var(--line);margin-left:6px;flex:none}
+.go::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:left .2s}
+.go.on{background:var(--ink)}.go.on::after{left:25px}.go.busy{background:var(--acc)}.go.busy::after{left:14px}.go:hover{background:var(--card2)}.go.on:hover{background:var(--ink)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--mute);margin-right:6px}.dot.running{background:var(--ok)}.dot.external{background:#b794f6}
+.dot.starting,.dot.setting{background:var(--acc);animation:pl 1s infinite}@keyframes pl{50%{opacity:.3}}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card);border-radius:24px;padding:18px 20px;box-shadow:var(--shadow);min-width:0}
+.card h3{margin:0 0 12px;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.kpi .v{font-size:32px;font-weight:600;margin:4px 0 2px}.kpi .l{color:var(--mute)}.kpi .s{font-size:12px;color:var(--mute)}
+.span2{grid-column:span 2}.span4{grid-column:1/-1}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.c-ok{background:var(--okbg);color:var(--ok)}.c-bad{background:var(--badbg);color:var(--bad)}.c-acc{background:var(--accs);color:var(--acc)}.c-none{background:var(--card2);color:var(--mute)}.c-ext{background:#efe6fd;color:#7c4ddb}
+[data-theme=dark] .c-ext{background:#2a2140;color:#c5a8ff}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.mini div{background:var(--card2);border-radius:14px;padding:8px 12px}.mini b{display:block;font-size:17px;font-weight:600}.mini span{font-size:11px;color:var(--mute)}
+.tl{max-height:360px;overflow:auto;border-left:2px solid var(--line);margin:12px 0 0 6px;padding-left:16px}
+.ev{position:relative;padding:6px 0;font-size:13px}.ev i{position:absolute;left:-23px;top:11px;width:10px;height:10px;border-radius:50%;background:var(--mute);border:2px solid var(--card)}
+.ev.ok i{background:var(--ok)}.ev.warn i{background:#f5c84c}.ev.error i{background:var(--bad)}.ev.error span{color:var(--bad)}.ev time{color:var(--mute);margin-right:8px;font-size:12px}.ev b{margin-right:6px;font-weight:600}
+.empty{margin:auto;text-align:center;padding:40px 20px;max-width:460px}.empty .pic{width:64px;height:64px;margin:0 auto 14px}
+pre.log{background:var(--card2);border-radius:16px;padding:12px;flex:1;margin:12px!important;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;margin:0;white-space:pre-wrap;word-break:break-all}
+pre.log time{color:var(--mute);margin-right:8px}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;display:none;max-width:90vw;box-shadow:0 10px 30px #0003;z-index:50}
+@media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){.brand b{display:none}.ctrl .wide{display:none}.scroll{padding:14px}}
+@media(max-width:640px){.grid{grid-template-columns:1fr}.span2{grid-column:auto}}
+</style></head><body>
+<div class="topbar">
+<div class="brand" onclick="go('overview')" title="Overview"><div class="mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>Solist Hub</b></div>
+<nav class="tabs" id="nav" aria-label="Tools"></nav>
+<div class="ctrl" id="ctrl"></div>
+<button class="ib" id="theme" title="Switch light / dark"></button><div class="avatar" title="Solist">S</div>
+</div>
+<div id="banner" class="banner" hidden></div>
+<div class="stage" id="stage"></div>
+<div id="toast"></div>
+<script>
+const ICON={
+overview:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
+maps:'<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+nykaa:'<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
+studio:'<path d="M4 7h11M4 12h7M4 17h11"/><path d="M17 10l3 2-3 2"/>',
+transcriber:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+upi:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/>',
+accounting:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+pdf:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+};
+const COLOR={pdf:'#e5484d',maps:'var(--acc)',nykaa:'#e85b9a',studio:'#b794f6',upi:'#30a46c',accounting:'#3e63dd'};
+const SHORT={maps:'Maps',nykaa:'Nykaa',studio:'Mapper',pdf:'PDF',upi:'UPI',accounting:'GST'};
+const svg=(k,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||ICON.overview}</svg>`;
+const LABEL={running:'running',starting:'starting…','setting up':'installing…',external:'running outside Hub',stopped:'stopped'};
+const CHIP={running:'c-ok',starting:'c-acc','setting up':'c-acc',external:'c-ext',stopped:'c-none'};
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtUp=s=>s<60?s+'s':s<3600?Math.floor(s/60)+'m':Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m';
+const num=v=>typeof v==='number'?v.toLocaleString():esc(v);
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+let S=[],E=[],cur=lsGet('hub.cur')||'overview',logSeq={},logBuf={},frameKey=null,lastOk=true;
+const theme=()=>document.documentElement.dataset.theme;
+function setTheme(t){document.documentElement.dataset.theme=t;lsSet('theme',t);$('#theme').textContent=t==='dark'?'☀':'☾';frameKey=null;render()}
+$('#theme').onclick=()=>setTheme(theme()==='dark'?'light':'dark');$('#theme').textContent=theme()==='dark'?'☀':'☾';
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3500)}
+async function act(id,a){const r=await fetch(`/api/${a}?id=${id}`,{method:'POST',headers:{'X-Solist-Hub':'1'}}).then(r=>r.json()).catch(()=>({result:'Hub is not running'}));
+ if(r.result&&r.result!=='ok'&&r.result!=='not running')toast(r.result);setTimeout(load,350)}
+const isOn=t=>t.status!=='stopped'&&t.status!=='external';
+const userOff=new Set(),framePath={};
+function toggle(id,ev){ev&&ev.stopPropagation();const t=S.find(x=>x.id===id);if(t.status==='external')return toast(`${t.name} was started outside the Hub. Close its own window to stop it.`);
+ if(isOn(t))userOff.add(id);else userOff.delete(id);act(id,isOn(t)?'stop':'start')}
+function go(id){cur=id;lsSet('hub.cur',id);frameKey=null;render();pullLogs();autoStart()}
+function ready(t){return (t.checks||[]).every(c=>c[1]||!c[5])}
+function autoStart(){const t=S.find(x=>x.id===cur);if(t&&t.port&&t.status==='stopped'&&ready(t)&&!userOff.has(t.id)){userOff.add(t.id);act(t.id,'start')}}
+async function doAction(id,a,how){closeMenus();const r=await fetch(`/api/action?id=${id}&a=${a}`,{method:'POST',headers:{'X-Solist-Hub':'1'}}).then(r=>r.json()).catch(()=>({result:'Hub is not running'}));
+ if(r.result&&r.result.startsWith('url:'))return window.open(r.result.slice(4),'_blank');
+ if(r.result!=='ok')return toast(r.result||r.error);toast(how==='console'?'Opened in its own window':how==='log'?'Running… see the log':'Done');
+ if(how==='log')showLog(true);setTimeout(load,500)}
+let logOpen=false;
+function showLog(on){logOpen=on===undefined?!logOpen:on;const d=$('#drawer');if(d)d.classList.toggle('on',logOpen);drawLogs()}
+function closeMenus(){document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open'))}
+document.addEventListener('click',e=>{if(!e.target.closest('.menu'))closeMenus()});
+function checklist(t){const bad=(t.checks||[]).filter(c=>!c[1]);if(!bad.length)return'';
+ return `<div class="card" style="text-align:left;margin-top:18px"><h3>${bad.some(c=>c[5])?'Before it can run':'Recommended'}<span class="sp"></span><span class="chip ${bad.some(c=>c[5])?'c-bad':'c-acc'}">${t.checks.length-bad.length} of ${t.checks.length} ready</span></h3>
+ ${t.checks.map(c=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><span class="chip ${c[1]?'c-ok':c[5]?'c-bad':'c-acc'}" style="width:26px;text-align:center;padding:3px 0">${c[1]?'✓':'!'}</span><div class="sp"><b style="font-weight:600">${esc(c[0])}</b> <span class="mute" style="font-size:12px">${esc(c[2])}</span></div>${!c[1]&&c[3]?`<button class="p" onclick="doAction('${t.id}','${c[3]}')">${esc(c[4])}</button>`:''}</div>`).join('')}</div>`}
+function sw(t){const c=t.status==='running'||t.status==='external'?'on':t.status==='stopped'?'':'busy';
+ return `<button class="go ${c}" onclick="toggle('${t.id}',event)" title="${isOn(t)?'Stop':'Start'} ${esc(t.name)}" aria-label="${isOn(t)?'Stop':'Start'} ${esc(t.name)}"></button>`}
+function pill(t){return `<div class="pill2" onclick="go('${t.id}')"><span class="pic" style="background:${COLOR[t.id]};">${svg(t.id,16)}</span><div><b>${esc(t.name)}</b><small><i class="dot ${t.status.split(' ')[0]}"></i>${esc(LABEL[t.status])}${t.uptime?' · '+fmtUp(t.uptime):''}</small></div>${sw(t)}</div>`}
+const dotColor=t=>t.status==='external'?'#b794f6':t.status==='running'?'var(--ok)':t.status==='stopped'?'var(--line)':'var(--acc)';
+function renderNav(){$('#nav').innerHTML=`<button class="tab ${cur==='overview'?'on':''}" onclick="go('overview')">${svg('overview',16)}Overview</button>`+
+ S.map(t=>`<button class="tab ${cur===t.id?'on':''}" onclick="go('${t.id}')" title="${esc(t.name)} · ${esc(LABEL[t.status])}">${svg(t.id,16)}${esc(t.name)}<i class="sd" style="background:${dotColor(t)}"></i></button>`).join('')}
+function timeline(){return E.length?E.map(e=>`<div class="ev ${e[2]}"><i></i><time>${e[0].slice(5,16)}</time><b>${esc(e[1])}</b><span>${esc(e[3])}</span></div>`).join(''):'<span class="mute">No activity yet</span>'}
+function headline(){const f=(id,i)=>{const t=S.find(x=>x.id===id);return t&&t.stats[i]?t.stats[i]:['–','–']};
+ return [['Places scraped',f('maps',0)[1],'Maps · '+num(f('maps',1)[1])+' with phone','maps'],['Nykaa products',f('nykaa',2)[1],num(f('nykaa',3)[1])+' variants · '+num(f('nykaa',0)[1])+' brands','nykaa'],
+  ['Rows converted',f('studio',1)[1],num(f('studio',0)[1])+' conversions · '+num(f('studio',3)[1])+' files','studio'],['PDF tools',f('pdf',0)[1],'Solist PDF · built '+esc(f('pdf',1)[1]),'pdf']]}
+let TX=null;   // transcript counts, read from the Transcriber while it runs
+async function pullTx(){const t=S.find(x=>x.id==='transcriber');if(!t||t.status!=='running')return;
+ try{const k=(await fetch('/t/transcriber/api/stats').then(r=>r.json())).kpi;TX={done:k.done,failed:k.failed,hours:Math.round(k.hours)};if(cur==='overview')render()}catch(e){}}
+function controls(t){const live=t.status==='running'||t.status==='external';
+ return `${sw(t)}<span class="mute wide" style="font-size:12px;min-width:70px">${esc(LABEL[t.status])}${t.uptime?' · '+fmtUp(t.uptime):''}</span>
+ ${isOn(t)?`<button onclick="act('${t.id}','restart')" title="Restart">↻<span class="wide">Restart</span></button>`:''}
+ <div class="menu"><button onclick="event.stopPropagation();this.parentNode.classList.toggle('open')">Tools ▾</button><div>
+  ${(t.actions||[]).length?'<small>'+esc(t.name)+'</small>'+t.actions.map(a=>`<button onclick="doAction('${t.id}','${a[0]}','${a[2]}')">${esc(a[1])}${a[2]==='console'?' ↗':''}</button>`).join(''):''}
+  <small>Hub</small>${t.url?`<button onclick="closeMenus();window.open('${t.url}','_blank')">Open in browser ↗</button>`:''}<button onclick="closeMenus();act('${t.id}','folder')">Open folder</button>
+  ${live&&t.embed?`<button onclick="closeMenus();frameKey=null;render()">Reload page</button>`:''}</div></div>
+ <button onclick="showLog()" title="Live log">Log</button>`}
+function render(){renderNav();if(cur==='transcribed')cur='transcriber';   // old tab, now inside the Transcriber
+ const t=S.find(x=>x.id===cur);
+ if(!t){const n=S.filter(x=>x.status==='running'||x.status==='external').length;frameKey=null;
+  $('#ctrl').innerHTML=`<button onclick="S.forEach(t=>t.status==='stopped'&&t.port&&act(t.id,'start'))">Start all</button><button class="p" onclick="S.forEach(t=>t.pid&&act(t.id,'stop'))">Stop all</button>`;
+  const sc=document.querySelector('#stage .scroll'),pos=sc?sc.scrollTop:0;
+  $('#stage').innerHTML=`<div class="scroll"><div class="wrap"><div class="top"><h1 class="ptitle">Overview<small>${n} of ${S.length} tools running</small></h1></div>
+  <div class="pills">${S.map(pill).join('')}</div>
+  <div class="grid">${headline().map(k=>`<div class="card kpi" style="cursor:pointer" onclick="go('${k[3]}')"><div class="l">${k[0]}</div><div class="v">${num(k[1])}</div><div class="s">${k[2]}</div></div>`).join('')}
+  ${S.map(t=>`<div class="card"><h3><span class="pic" style="width:30px;height:30px;background:${COLOR[t.id]};">${svg(t.id,14)}</span>${esc(t.name)}<span class="sp"></span><span class="chip ${CHIP[t.status]}">${esc(LABEL[t.status])}</span></h3>
+   <div class="mute" style="font-size:13px">${esc(t.desc)}</div><div class="mini">${t.stats.map(s=>`<div><b>${num(s[1])}</b><span>${esc(s[0])}</span></div>`).join('')}</div>
+   <div class="row">${sw(t)}<span class="sp"></span><button onclick="go('${t.id}')">Open</button></div></div>`).join('')}
+  <div class="card span2"><h3>Activity timeline</h3><div class="tl">${timeline()}</div></div></div></div></div>`;
+  document.querySelector('#stage .scroll').scrollTop=pos;return}
+ const live=t.status==='running'||t.status==='external',want=t.embed&&live?`${t.frame}/?theme=${theme()}`:'';
+ if(!document.querySelector('#ctrl .menu.open'))$('#ctrl').innerHTML=controls(t);
+ const key=t.id+'|'+want+'|'+t.status+'|'+(want?'':JSON.stringify(t.checks));
+ if(frameKey===key)return;frameKey=key;
+ const body=want?`<div class="frame"><iframe src="${want}" title="${esc(t.name)}"></iframe></div>`:`<div class="scroll"><div class="empty" style="max-width:640px"><div class="pic" style="background:${COLOR[t.id]}">${svg(t.id,26)}</div>${
+   live?`<h3>${esc(t.name)} is running</h3><p class="mute">${t.remote?'Its page opens only on the Hub computer itself. Open Log to follow it.':'It has no page of its own. Open Log to follow it.'}</p>`
+   :t.status==='stopped'?(ready(t)?`<h3>${esc(t.name)} is off</h3><p class="mute">${esc(t.desc)}</p><button class="p" onclick="toggle('${t.id}')">Start ${esc(t.name)}</button>`
+     :`<h3>Almost there</h3><p class="mute">Finish these, then ${esc(t.name)} starts here with all of its features.</p>`):`<h3>Starting…</h3><p class="mute">Open Log to watch it start.</p>`}${checklist(t)}</div></div>`;
+ $('#stage').innerHTML=body+`<aside class="drawer ${logOpen?'on':''}" id="drawer"><header><b class="sp">${esc(t.name)} log</b><button onclick="act('${t.id}','clear');logBuf['${t.id}']=[];drawLogs()">Clear</button><button onclick="showLog(false)">Close</button></header><pre class="log" id="lg"></pre></aside>`;drawLogs()}
+async function pullLogs(){if(cur==='overview')return;const id=cur;const rows=await fetch(`/api/logs?id=${id}&after=${logSeq[id]||0}`).then(r=>r.json()).catch(()=>[]);if(!rows.length)return;
+ logSeq[id]=rows[rows.length-1][0];logBuf[id]=(logBuf[id]||[]).concat(rows).slice(-1500);if(id===cur)drawLogs()}
+function drawLogs(){const el=$('#lg');if(!el)return;const stick=el.scrollTop+el.clientHeight>=el.scrollHeight-30;
+ el.innerHTML=(logBuf[cur]||[]).map(r=>`<div><time>${r[1]}</time>${esc(r[2])}</div>`).join('')||'<span class="mute">No output yet</span>';if(stick)el.scrollTop=el.scrollHeight}
+async function load(){try{[S,E]=await Promise.all([fetch('/api/state').then(r=>r.json()),fetch('/api/events').then(r=>r.json())]);$('#banner').hidden=true;lastOk=true;render();autoStart()}
+ catch(e){if(lastOk){$('#banner').hidden=false;$('#banner').textContent='The Hub has stopped. Start it again: Solist Hub.vbs on Windows, Solist Hub in the Ubuntu app menu.'}lastOk=false}}
+load();setInterval(load,2500);setInterval(pullLogs,1200);setTimeout(pullTx,1500);setInterval(pullTx,30000);
+</script></body></html>

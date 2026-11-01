@@ -1,0 +1,2 @@
+# Pinned to the version in the working Windows .venv. pandas 3 needs Python 3.11+.
+pandas==3.0.6

@@ -1,0 +1,190 @@
+name: Build Tauri
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
+jobs:
+  build-tauri:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+
+    # Mitigate intermittent crates.io download failures (schannel close_notify, etc.)
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_NET_RETRY: 10
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
+      CARGO_HTTP_MULTIPLEXING: false
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+      RUSTUP_MAX_RETRIES: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> src-tauri/target"
+
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2 || true
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Generate version info
+        id: version
+        shell: bash
+        run: |
+          VERSION="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          TAURI_ENV: "true"
+          APP_VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Build Tauri app
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          shell: bash
+          command: npx tauri build -v --ci --config src-tauri/tauri.ci.conf.json
+        env:
+          TAURI_ENV: "true"
+          RUST_BACKTRACE: "1"
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          APPLE_SIGNING_IDENTITY: "-"
+
+      - name: Patch Linux AppImage (Exclude Conflicting Graphics Libraries)
+        if: matrix.platform == 'ubuntu-latest'
+        shell: bash
+        run: |
+          echo "Patching AppImage to exclude bundled Wayland client libraries..."
+          APPIMAGE_FILE=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -n 1)
+          if [ -n "$APPIMAGE_FILE" ] && [ -f "$APPIMAGE_FILE" ]; then
+            echo "Found AppImage: $APPIMAGE_FILE"
+            WORKDIR=$(mktemp -d)
+            cd "$WORKDIR"
+            chmod +x "$GITHUB_WORKSPACE/$APPIMAGE_FILE"
+
+            # Extract AppImage
+            APPIMAGE_EXTRACT_AND_RUN=1 "$GITHUB_WORKSPACE/$APPIMAGE_FILE" --appimage-extract
+
+            # Remove bundled libwayland-client to prevent conflicts with host's Mesa/EGL drivers on newer distros (e.g., Ubuntu 26.04)
+            echo "Removing bundled Wayland client libraries from AppImage..."
+            find squashfs-root/ -name "libwayland-client.so*" -print -delete || true
+            find squashfs-root/ -name "libwayland-egl.so*" -print -delete || true
+
+            # Download appimagetool if not installed
+            if ! command -v appimagetool >/dev/null 2>&1; then
+              curl -sSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -o appimagetool
+              chmod +x appimagetool
+              APPIMAGETOOL="./appimagetool"
+            else
+              APPIMAGETOOL="appimagetool"
+            fi
+
+            # Repackage AppImage without conflicting libraries
+            rm -f "$GITHUB_WORKSPACE/$APPIMAGE_FILE"
+            APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 "$APPIMAGETOOL" squashfs-root "$GITHUB_WORKSPACE/$APPIMAGE_FILE"
+            chmod +x "$GITHUB_WORKSPACE/$APPIMAGE_FILE"
+            cd "$GITHUB_WORKSPACE"
+            rm -rf "$WORKDIR"
+            echo "Successfully repacked AppImage without conflicting Wayland libraries."
+          fi
+
+      - name: Ad-hoc Sign macOS App Bundle & Repackage DMG
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          echo "Applying deep ad-hoc signature to macOS .app bundle..."
+          APP_PATH=$(find src-tauri/target/release/bundle/macos -name "*.app" -maxdepth 1 | head -n 1)
+          if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
+            xattr -cr "$APP_PATH" || true
+            codesign --force --deep --sign - "$APP_PATH"
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+            echo "Ad-hoc signing verified for $APP_PATH"
+
+            # Repackage DMG with the deep-signed .app bundle
+            DMG_FILE=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -n 1)
+            if [ -n "$DMG_FILE" ]; then
+              echo "Repackaging DMG: $DMG_FILE"
+              STAGING_DIR=$(mktemp -d)
+              cp -R "$APP_PATH" "$STAGING_DIR/"
+              ln -s /Applications "$STAGING_DIR/Applications"
+              xattr -cr "$STAGING_DIR" || true
+              rm -f "$DMG_FILE"
+              hdiutil create -volname "PDFCraft" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG_FILE"
+              codesign --force --sign - "$DMG_FILE" || true
+              rm -rf "$STAGING_DIR"
+            fi
+
+            # Also create a signed .app.zip archive
+            cd src-tauri/target/release/bundle/macos
+            APP_NAME=$(basename "$APP_PATH")
+            ditto -c -k --keepParent "$APP_NAME" "../PDFCraft_macos_aarch64.app.zip"
+          fi
+
+      - name: Package Portable Windows Build
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          echo "Packaging Windows portable version..."
+          mkdir -p src-tauri/target/release/bundle/portable
+          if [ -f "src-tauri/target/release/pdfcraft.exe" ]; then
+            cp "src-tauri/target/release/pdfcraft.exe" "src-tauri/target/release/bundle/portable/PDFCraft-Portable.exe"
+          elif [ -f "src-tauri/target/release/PDFCraft.exe" ]; then
+            cp "src-tauri/target/release/PDFCraft.exe" "src-tauri/target/release/bundle/portable/PDFCraft-Portable.exe"
+          fi
+          echo "PDFCraft Portable Mode" > "src-tauri/target/release/bundle/portable/portable.txt"
+          echo "All application data and cache will be stored in the 'data' folder alongside this file." >> "src-tauri/target/release/bundle/portable/portable.txt"
+          cd src-tauri/target/release/bundle/portable
+          if command -v 7z >/dev/null 2>&1; then
+            7z a ../PDFCraft-Windows-x64-Portable.zip PDFCraft-Portable.exe portable.txt
+          elif command -v zip >/dev/null 2>&1; then
+            zip -r ../PDFCraft-Windows-x64-Portable.zip PDFCraft-Portable.exe portable.txt
+          else
+            tar -a -c -f ../PDFCraft-Windows-x64-Portable.zip PDFCraft-Portable.exe portable.txt
+          fi
+          echo "Portable zip created at src-tauri/target/release/bundle/PDFCraft-Windows-x64-Portable.zip"
+
+      - name: Upload Tauri bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.zip
+          if-no-files-found: warn

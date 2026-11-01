@@ -1,0 +1,146 @@
+# GitHub Actions workflow for automatic build and release
+# Triggers on push to main branch
+# Builds the project, creates a zip package, and publishes to GitHub Releases
+
+name: Build and Release
+
+on:
+  workflow_run:
+    workflows: ["Build Tauri"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+# Prevent concurrent builds
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    
+    permissions:
+      contents: write  # Required for creating releases
+    
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Build the project (generates static export in 'out' directory)
+      # Generate version tag based on date and short commit hash
+      - name: Generate version info
+        id: version
+        run: |
+          VERSION="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          BUILD_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      # Build the project (generates static export in 'out' directory)
+      - name: Build project
+        run: npm run build
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+
+      # Create release package from static export
+      - name: Create release package
+        run: |
+          # The 'out' directory contains the static export
+          cd out
+          zip -r ../pdfcraft-${{ steps.version.outputs.version }}.zip .
+          cd ..
+          
+          echo "📦 Release package created: pdfcraft-${{ steps.version.outputs.version }}.zip"
+          echo "📊 Package size: $(du -h pdfcraft-${{ steps.version.outputs.version }}.zip | cut -f1)"
+
+      # Download Tauri desktop builds from the completed Tauri workflow
+      - name: Download Tauri macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-macos-latest
+          path: tauri-bundles/macos
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Tauri Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-windows-latest
+          path: tauri-bundles/windows
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Tauri Linux build
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-ubuntu-latest
+          path: tauri-bundles/linux
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      # Create GitHub Release with auto-generated notes from commits
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: PDFCraft ${{ steps.version.outputs.version }}
+          body: |
+            ## 🚀 PDFCraft Release ${{ steps.version.outputs.version }}
+
+            ### 📦 Download & Install
+            Download the appropriate file for your platform:
+            - **Windows (Portable):** `PDFCraft-Windows-x64-Portable.zip` (No installation needed, isolated data)
+            - **Windows (Installer):** `.msi` or `*-setup.exe`
+            - **macOS (Apple Silicon):** `.dmg` or `PDFCraft_macos_aarch64.app.zip`
+            - **Linux:** `.AppImage` (Portable) or `.deb`
+
+            #### 🍎 macOS Users Note (Fixing *"PDFCraft.app is damaged and can't be opened"*)
+            Because the app is currently built with ad-hoc signing (without a paid Apple Developer ID notarization), macOS Gatekeeper quarantines files downloaded from browsers.
+            1. Open the `.dmg` and drag **PDFCraft.app** into your **Applications** folder (do **not** launch it directly from inside the mounted DMG window).
+            2. Open **Terminal** and run the following command to clear the quarantine flag:
+               ```bash
+               sudo xattr -rd com.apple.quarantine /Applications/PDFCraft.app
+               ```
+            3. Launch **PDFCraft** from Applications as normal.
+
+            ---
+            **Commit:** `${{ github.sha }}`
+            **Build Time:** ${{ steps.version.outputs.build_time }}
+          files: |
+            pdfcraft-${{ steps.version.outputs.version }}.zip
+            tauri-bundles/**/*.dmg
+            tauri-bundles/**/*.msi
+            tauri-bundles/**/*.exe
+            tauri-bundles/**/*.deb
+            tauri-bundles/**/*.AppImage
+            tauri-bundles/**/*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

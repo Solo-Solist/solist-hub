@@ -1,0 +1,24 @@
+<style id="solist-theme">
+/* Solist Hub shared look (from the Call Transcripts dashboard). Loaded by each tool at start-up. */
+:root{--page:#e6e6ec;--bg:#f3f3f7;--panel:#f3f3f7;--card:#ffffff;--card2:#f1f1f5;--ink:#1c1c21;--tx:#1c1c21;--mute:#8b8b96;--mut:#8b8b96;
+--ac:#f26b3a;--line:#e8e8ef;--okbg:#e2f5ea;--ok:#21945a;--shadow:0 1px 2px #1c1c210a,0 4px 14px #1c1c2108}
+html[data-theme=dark]{--page:#050506;--bg:#111114;--panel:#111114;--card:#1b1b20;--card2:#25252b;--ink:#f2f2f6;--tx:#f2f2f6;--mute:#9a9aa6;--mut:#9a9aa6;
+--ac:#f47a4c;--line:#2d2d34;--okbg:#17321f;--ok:#5fd394;--shadow:none;color-scheme:dark}
+html,body{background:var(--page)!important;color:var(--ink)!important}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif!important;padding:18px}
+.app,.panel{background:var(--bg)!important;border-radius:36px!important;box-shadow:0 0 0 8px var(--card)}
+.card{background:var(--card)!important;border:0!important;border-radius:24px!important;box-shadow:var(--shadow)}
+.logo,.ring,.btn.k,.go.stop,.nav a.cur,.Low,.None,.Retry{background:var(--ink)!important;color:var(--bg)!important}
+input,select,textarea,.pill,.play,.go,.btn.o,tr.sel td{background:var(--card)!important;color:var(--ink)!important;border-color:var(--line)!important}
+.pill,.btn.o,.go,.play{box-shadow:var(--shadow);border-color:transparent!important}
+.btn{background:var(--ink);color:var(--bg)}
+.bar,.tag,th{background:var(--card2)}.Done,.High,.Manual{background:var(--okbg)!important;color:var(--ok)!important}
+h1 span,.hero h1 span{color:var(--mute)!important}.kpi .ic{color:var(--ink)!important;border-color:var(--line)!important}
+a{color:var(--ac)}.nav a{color:var(--ink)}
+html.embedded,html.embedded body{background:var(--bg)!important}
+html.embedded body{padding:0}
+html.embedded .app,html.embedded .panel{box-shadow:none;border-radius:0!important;padding:12px 14px!important;max-width:none}
+</style>
+<script>(function(){try{var q=new URLSearchParams(location.search).get("theme");if(q)localStorage.theme=q;
+document.documentElement.dataset.theme=q||localStorage.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
+if(window.top!==window)document.documentElement.classList.add("embedded")})()</script>

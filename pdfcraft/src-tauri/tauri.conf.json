@@ -1,0 +1,49 @@
+{
+  "productName": "PDFCraft",
+  "version": "0.1.0",
+  "identifier": "com.pdfcraft.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../out"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "PDFCraft",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' https: blob: data: 'unsafe-inline' 'unsafe-eval'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; frame-src 'self' https: blob: data:; object-src 'none'; script-src 'self' https: 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data:; worker-src 'self' blob: https: data:; wasm-src 'self' blob: https:; style-src 'self' https: 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' https: data:; media-src 'self' blob: https:; connect-src 'self' data: blob: https: http:;",
+      "dangerousDisableAssetCspModification": ["style-src"],
+      "headers": {
+        "Cross-Origin-Resource-Policy": "cross-origin"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "msi", "nsis", "deb", "appimage"],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

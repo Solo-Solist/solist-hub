@@ -1,0 +1,37 @@
+# Secrets
+.env
+.env.*
+!.env.example
+hub/.share-credentials
+
+# Installed packages and builds
+node_modules/
+.venv*/
+__pycache__/
+.next/
+out/
+dist/
+
+# Local data (each machine keeps its own)
+logs/
+*.db
+*.db-*
+*.sqlite*
+*.bak*
+hub/.window/
+map_scrapper/gmaps.db
+map_scrapper/results.*
+map_scrapper/mumbai_scrape_output/
+nykaa-scraper/exports/
+nykaa-scraper/*_state.json
+nykaa-scraper/brands_queue.json
+nykaa-scraper/folders.json
+nykaa-scraper/*.csv
+nykaa_mapper/exports/
+nykaa_mapper/inbox/
+nykaa_mapper/folders.json
+upi-id/data/
+upi-id/reports/
+accounting/data/
+accounting/Saved Invoices/
+accounting/Trash/
