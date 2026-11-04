@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+!excalidraw/.env.development
+!excalidraw/.env.production
+!excalidraw/.env.test
 hub/.share-credentials
 
 # Installed packages and builds

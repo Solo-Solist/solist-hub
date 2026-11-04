@@ -191,6 +191,7 @@ def actions():
         "mapper_inbox": ("Open inbox folder", None, "nykaa_mapper/inbox", "folder"),
         "upi-id_setup": ("Install packages", script("setup"), "upi-id", "console"),
         "accounting_setup": ("Install and build", script("setup"), "accounting", "console"),
+        "excalidraw_setup": ("Install and build", script("setup"), "excalidraw", "console"),
         "pdf_build": ("Rebuild Solist PDF (needs Node.js)", build, "pdfcraft", "log"),
         "pdf_out": ("Open built files", None, "pdfcraft/out", "folder"),
     }
@@ -222,6 +223,11 @@ TOOLS = [
          desc="GST invoices, clients, products and expenses. Data stays in accounting/data.",
          cmd=lambda: script("start"), stats=lambda: [["Data folder", "accounting/data"]],
          checks=lambda: checks_node("accounting", "dist/index.html"), actions=["accounting_setup"]),
+    dict(id="excalidraw", name="Solist Draw", group="Documents", folder="excalidraw", port=8093,
+         desc="Whiteboard for sketches and diagrams. Drawings stay in this browser unless you share them.",
+         cmd=lambda: [sys.executable, str(HUB / "static_server.py"), str(TOOLS_DIR / "excalidraw" / "excalidraw-app" / "build"), "8093"],
+         stats=lambda: [["Drawings saved in", "this browser"]],
+         checks=lambda: checks_node("excalidraw", "excalidraw-app/build/index.html"), actions=["excalidraw_setup"]),
 ]
 BY_ID = {t["id"]: t for t in TOOLS}
 

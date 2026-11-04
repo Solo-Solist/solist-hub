@@ -12,6 +12,7 @@ It all runs on your own machine, on Windows, macOS or Linux.
 | `pdfcraft/` | Solist PDF: merge, split, compress, convert and sign PDFs | 8090 | Node.js 20+ to build, Python to serve |
 | `upi-id/` | UPI Gateway (YouPI): local payment gateway | 8091 | Node.js 24+ |
 | `accounting/` | GST Billing: invoices, clients, products, expenses | 8092 | Node.js 18+ |
+| `excalidraw/` | Solist Draw: whiteboard for sketches and diagrams | 8093 | Node.js 18+ to build, Python to serve |
 
 UPI Gateway also opens its own services on 6001, 6002, 6003, 6100, 7000 and 5010.
 
@@ -85,5 +86,6 @@ details. Never commit it.
 - **Linux, the scraper's browser won't start**: `sudo map_scrapper/.venv-linux/bin/python -m playwright install-deps chromium`.
 
 `upi-id` comes from [YouPI-PG](https://github.com/youpi-pg/YouPI-PG). `accounting` comes from
-[Free-GST-Billing-Software](https://github.com/IamRamgarhia/Free-GST-Billing-Software). `pdfcraft` is a
+[Free-GST-Billing-Software](https://github.com/IamRamgarhia/Free-GST-Billing-Software). `excalidraw` is Solist Draw, a fork of
+[Excalidraw](https://github.com/excalidraw/excalidraw) at dd2f8fc3. `pdfcraft` is a
 fork of PDFCraft. Each keeps its own license file.
