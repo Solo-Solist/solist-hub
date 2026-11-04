@@ -1,5 +1,5 @@
 @echo off
-rem Windows: start Solist Hub with this console window open (shows errors). "..\Start Solist Hub.bat" opens it without one.
+rem Windows: start Solist Hub with this console window open (shows errors). "..\launch.bat" opens it without one.
 setlocal
 cd /d "%~dp0"
 set "BASE="

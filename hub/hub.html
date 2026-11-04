@@ -170,7 +170,7 @@ async function pullLogs(){if(cur==='overview')return;const id=cur;const rows=awa
  logSeq[id]=rows[rows.length-1][0];logBuf[id]=(logBuf[id]||[]).concat(rows).slice(-1500);if(id===cur)drawLogs()}
 function drawLogs(){const el=$('#lg');if(!el)return;const stick=el.scrollTop+el.clientHeight>=el.scrollHeight-30;
  el.innerHTML=(logBuf[cur]||[]).map(r=>`<div><time>${r[1]}</time>${esc(r[2])}</div>`).join('')||'<span class="mute">No output yet</span>';if(stick)el.scrollTop=el.scrollHeight}
-async function load(){try{[S,E]=await Promise.all([fetch('/api/state').then(r=>r.json()),fetch('/api/events').then(r=>r.json())]);$('#banner').hidden=true;lastOk=true;render();autoStart()}
- catch(e){if(lastOk){$('#banner').hidden=false;$('#banner').textContent='The Hub has stopped. Start it again: Solist Hub.vbs on Windows, Solist Hub in the Ubuntu app menu.'}lastOk=false}}
+async function load(){try{[S,E]=await Promise.all([fetch('/api/state').then(r=>r.json()),fetch('/api/events').then(r=>r.json())]);$('#banner').hidden=true;if(!lastOk)frameKey=null;lastOk=true;render();autoStart()}
+ catch(e){if(lastOk){$('#banner').hidden=false;$('#banner').textContent='The Hub has stopped, and its tools with it. Start it again with launch.bat on Windows, launch.command on macOS or ./launch.sh on Linux. This page reconnects by itself.';S.forEach(t=>{t.status='stopped';t.uptime=0;t.pid=null});S.forEach(t=>userOff.add(t.id));frameKey=null;render()}lastOk=false}}
 load();setInterval(load,2500);setInterval(pullLogs,1200);setTimeout(pullTx,1500);setInterval(pullTx,30000);
 </script></body></html>

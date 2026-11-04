@@ -642,6 +642,11 @@ if __name__ == "__main__":
         threading.Thread(target=app_window, args=(srv,), daemon=True).start()
     elif "--no-browser" not in sys.argv:
         threading.Timer(1, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+    def quit_hub(*_):                                     # kill / closed terminal: end through the finally below, so tools stop too
+        raise KeyboardInterrupt
+    for name in ("SIGTERM", "SIGHUP"):                    # Windows has no SIGHUP
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), quit_hub)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
