@@ -5,6 +5,7 @@ where npm >nul 2>nul || (echo Node.js is needed: https://nodejs.org ^(version 20
 call npm ci
 set NEXT_PUBLIC_LOCALES=en
 call npm run build
+if exist out\index.html rmdir /s /q node_modules
 echo Setup finished. Start with start.bat
 :end
 if not "%1"=="nopause" pause

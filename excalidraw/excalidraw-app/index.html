@@ -34,6 +34,11 @@
         }
 
         function getTheme() {
+          // Solist: the Hub passes its theme in the address
+          const asked = new URLSearchParams(location.search).get("theme");
+          if (asked === "dark" || asked === "light") {
+            window.localStorage.setItem("excalidraw-theme", asked);
+          }
           const theme = window.localStorage.getItem("excalidraw-theme");
 
           if (theme && theme === "system") {
@@ -146,6 +151,11 @@
           user-select: auto;
         }
       }
+    </style>
+    <style>
+      /* Solist: Hub violet in place of Excalidraw's purple */
+      .excalidraw{--color-primary:#9b5de5;--color-primary-darker:#8446d6;--color-primary-darkest:#6d33b8;--color-primary-light:#f1e9fd;--color-primary-light-darker:#e4d4fb;--color-primary-hover:#8446d6;--color-brand-hover:#8446d6;--color-brand-active:#6d33b8}
+      .excalidraw.theme--dark{--color-primary:#b083f0;--color-primary-darker:#c9a8f5;--color-primary-darkest:#e4d4fb;--color-primary-light:#2e2445;--color-primary-light-darker:#3a2d58;--color-primary-hover:#c9a8f5}
     </style>
   </head>
 

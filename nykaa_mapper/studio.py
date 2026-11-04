@@ -499,7 +499,7 @@ label.ck{display:flex;gap:8px;align-items:center;padding:5px 0;cursor:pointer}
 <div class="top"><div class="row"><div class="logo">N°</div><div><b>Nykaa Studio</b><br><span class="mute">Scrape · Convert · Review · Export</span></div></div>
 <div class="row nav"><a class="pill cur" onclick="goto('top',this)">Convert</a><a class="pill" onclick="goto('rv',this)">Review</a><a class="pill" onclick="goto('ex',this)">Exports</a><a class="pill" onclick="goto('lg',this)">Logs</a><a class="pill" id="scb" onclick="openScraper()">Scraper ↗</a>
 <div class="pill" id="st"></div></div></div>
-<div class="hero" style="margin:18px 0 6px"><div class="grow"><h1>Ready to convert? 👋</h1><h1><span>Tick brands or files, name the export, press start.</span></h1></div>
+<div class="hero" style="margin:18px 0 6px"><div class="grow"><h1>Nykaa Mapper</h1><h1><span>Tick brands or files, name the export, press start.</span></h1></div>
 <input id="en" placeholder="Export name (optional)" size="26"><button class="go" id="go" onclick="start()">▶</button></div>
 <div class="mute" id="jm" style="text-align:right;min-height:16px"></div>
 <div class="g g6"><div id="kpis" style="display:contents"></div><div class="card" style="padding:10px"><div class="ring" id="gauge"></div></div></div>

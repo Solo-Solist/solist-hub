@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          "hub/hub.html"
+        ],
+        "createdAt": "2026-11-04T09:36:54.478Z",
+        "reason": "Claude triage: the only match is the indeterminate progress bar, shown only while a tool is starting; no content scrolls"
+      }
+    ]
+  }
+}

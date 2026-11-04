@@ -420,7 +420,6 @@ def export():
 
 # ---------------- UI ----------------
 HTML = r"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Maps Scraper</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel=stylesheet>
 <style>
 :root{--bg:#e4e3df;--panel:#f2f1ee;--card:#f8f7f5;--tx:#141414;--mut:#8b8a86;--ac:#d9694a;--line:#e5e3df}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px Inter,system-ui,sans-serif;padding:16px}
@@ -467,7 +466,7 @@ td{padding:16px 8px;border-top:1px solid var(--line);vertical-align:middle}tr.se
 </header>
 <div class=hero>
  <div class=row><div class=date><span id=day></span><small id=dm></small></div><button class=btn style="margin-left:72px" onclick="document.getElementById('queue').scrollIntoView({behavior:'smooth'})">Show my queue →</button></div>
- <div class=row><h1 id=h1>Hey, ready to scrape? 👋<span>Add a job and press start.</span></h1><button class=play id=play onclick=play()>▶</button></div>
+ <div class=row><h1 id=h1>Maps Scraper<span>Add a job and press start.</span></h1><button class=play id=play onclick=play()>▶</button></div>
 </div>
 <div class=grid id=kpis></div>
 <div class=card style="width:296px;padding:14px;margin-bottom:14px"><svg viewBox="0 0 200 200" id=ring></svg></div>
@@ -505,7 +504,7 @@ async function refresh(){
  $('jobsel').innerHTML='<option value=all>All jobs</option>'+jobs.map(j=>`<option value=${j.id} ${j.id==J?'selected':''}>#${j.id} · ${esc(JSON.parse(j.params).label||JSON.parse(j.params).pincode)}</option>`).join('');
  $('stat').className='pill '+(running?'run':'');$('stxt').textContent=running?'Running':'Idle';$('play').textContent=running?'■':'▶';
  const tot=sel.reduce((a,j)=>a+j.total,0),done=sel.reduce((a,j)=>a+j.done,0),err=sel.reduce((a,j)=>a+j.err,0),pc=tot?Math.round(done/tot*100):0;
- $('h1').innerHTML=running?`Scraping… ${pc}%<span>${fmt(done)} of ${fmt(tot)} searches done.</span>`:`Hey, ready to scrape? 👋<span>Add a job and press start.</span>`;
+ $('h1').innerHTML=running?`Scraping… ${pc}%<span>${fmt(done)} of ${fmt(tot)} searches done.</span>`:`Maps Scraper<span>Add a job and press start.</span>`;
  $('jobs').innerHTML='<tr><th>Job<th>Radius<th>Places<th>Searches<th>Failed<th>With phone<th>Status<th></tr>'+jobs.map(j=>{const p=JSON.parse(j.params);return`<tr class="${j.id==J?'sel':''}">
   <td onclick="J='${j.id}';refresh()" style=cursor:pointer><b>${esc(p.label||p.pincode)}</b><br><span class=sub>${esc(p.queries.join(', '))}</span><td>${p.radius} km<td>${fmt(j.n)}
   <td><div class=prog><small>${j.done}/${j.total}</small><div class=tr><i style="width:${j.total?j.done/j.total*100:0}%"></i></div></div><td>${j.err}<td>${j.ph}<td><span class="st ${j.status}">${j.status}</span>

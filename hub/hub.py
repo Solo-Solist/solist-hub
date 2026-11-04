@@ -164,7 +164,7 @@ def checks_mapper():
 
 
 def checks_pdf():
-    return [["Built", (PDF_OUT / "index.html").exists(), "run pdfcraft setup once (needs Node.js)", "pdf_build"]]
+    return [["Build Solist PDF", (PDF_OUT / "index.html").exists(), "Takes several minutes and needs Node.js", "pdf_build"]]
 
 
 def npm():
@@ -176,10 +176,6 @@ def npm():
 # id: (label, command or url, folder under tools/, how)
 #   log = output in the Hub log; console = its own window to type in; folder = open it; url = open a page
 def actions():
-    if WIN:
-        build = ["cmd", "/c", "set NEXT_PUBLIC_LOCALES=en&& npm run build"] if npm() else None
-    else:
-        build = ["env", "NEXT_PUBLIC_LOCALES=en", npm(), "run", "build"] if npm() else None
     return {
         "maps_setup": ("Set up Python environment", script("setup"), "map_scrapper", "console"),
         "maps_export": ("Download all places (CSV)", "http://localhost:5000/api/export?job=all", "map_scrapper", "url"),
@@ -192,7 +188,7 @@ def actions():
         "mapper_exports": ("Open exports folder", None, "nykaa_mapper/exports", "folder"),
         "mapper_inbox": ("Open inbox folder", None, "nykaa_mapper/inbox", "folder"),
         "excalidraw_setup": ("Install and build", script("setup"), "excalidraw", "console"),
-        "pdf_build": ("Rebuild Solist PDF (needs Node.js)", build, "pdfcraft", "log"),
+        "pdf_build": ("Build Solist PDF (needs Node.js)", script("setup") if npm() else None, "pdfcraft", "log"),
         "pdf_out": ("Open built files", None, "pdfcraft/out", "folder"),
     }
 
@@ -239,6 +235,7 @@ def open_folder(path):
 class Proc:
     def __init__(self, tool):
         self.tool, self.p, self.started = tool, None, 0
+        self.acting = None                                  # the one log-mode action running now
         self.lines = collections.deque(maxlen=3000)
         self.seq = 0
         self.lock = threading.Lock()
@@ -324,6 +321,10 @@ class Proc:
             subprocess.Popen(cmd, cwd=cwd, creationflags=subprocess.CREATE_NEW_CONSOLE if WIN else 0)
             event("info", self.tool["name"], f"{label} (own window)")
             return "ok"
+        with self.lock:
+            if self.acting:                                 # a second npm ci would delete the first one's files
+                return f"{self.acting} is already running. Follow it in the log."
+            self.acting = label
         self.add(f"── {label}")
         event("info", self.tool["name"], label)
 
@@ -334,10 +335,12 @@ class Proc:
                                      creationflags=NO_WINDOW)
             except OSError as e:
                 self.add(f"could not run: {e}")
+                self.acting = None
                 return
             for raw in iter(q.stdout.readline, b""):
                 self.add(raw.decode("utf-8", "replace").rstrip())
             code = q.wait()
+            self.acting = None
             self.add(f"── {label}: {'done' if code == 0 else 'failed (code %s)' % code}")
             event("ok" if code == 0 else "error", self.tool["name"], f"{label}: {'done' if code == 0 else 'failed'}")
         threading.Thread(target=go, daemon=True).start()

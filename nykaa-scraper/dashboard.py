@@ -350,7 +350,7 @@ table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--mute);f
 <div class="pill" id="st"></div></div></div>
 <div class="hero card" style="margin-top:14px;background:transparent;border:0;padding:6px 0"><div class="date" id="dt"></div><div class="mute" id="dl"></div>
 <button class="btn" onclick="location='#q'">Show my queue →</button><div class="grow"></div>
-<div style="text-align:right"><h1>Hey, ready to scrape? 👋</h1><h1><span>Add a brand and press start.</span></h1></div><button class="go" id="go" onclick="toggle()">▶</button></div>
+<div style="text-align:right"><h1>Nykaa Scraper</h1><h1><span>Add a brand and press start.</span></h1></div><button class="go" id="go" onclick="toggle()">▶</button></div>
 <div class="g g6"><div id="kpis" style="display:contents"></div><div class="card" style="padding:10px"><div class="ring" id="gauge"></div></div></div>
 <div class="card g" id="q" style="margin-top:14px"><h3>Brand queue</h3>
 <div class="row" style="flex-wrap:wrap"><input id="an" placeholder="Brand name" size="18"><input id="au" placeholder="Brand page link" size="52"><input id="ap" placeholder="Total pages" size="10">
