@@ -1,8 +1,8 @@
 @echo off
-rem Windows: set up every project (or only the ones named: setup.bat pdfcraft accounting).
+rem Windows: set up every project (or only the ones named: setup.bat pdfcraft excalidraw).
 cd /d "%~dp0"
 set PROJECTS=%*
-if "%PROJECTS%"=="" set PROJECTS=map_scrapper nykaa-scraper nykaa_mapper pdfcraft upi-id accounting excalidraw
+if "%PROJECTS%"=="" set PROJECTS=map_scrapper nykaa-scraper nykaa_mapper pdfcraft excalidraw
 for %%p in (%PROJECTS%) do (
   echo.
   echo === Setting up %%p ===

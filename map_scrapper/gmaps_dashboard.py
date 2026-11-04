@@ -15,12 +15,19 @@ Needs gmaps_scraper.py in the same folder (parser + browser actions).
 import csv, io, json, math, queue, random, traceback, re, sqlite3, subprocess, signal, os, sys, threading, time, urllib.parse, urllib.request
 from flask import Flask, Response, jsonify, request
 from scrapling.fetchers import DynamicSession, StealthySession
-from gmaps_scraper import FEED, PLACE_SEL, make_scroll_action, parse_place, _accept_consent
+from gmaps_scraper import csv_safe, FEED, PLACE_SEL, make_scroll_action, parse_place, _accept_consent
 
 DB = "gmaps.db"
 app = Flask(__name__)
 Q = queue.Queue()
 STOP = set()
+
+
+@app.before_request
+def block_other_websites():
+    origin = request.headers.get("Origin")
+    if request.method not in ("GET", "HEAD") and origin and urllib.parse.urlparse(origin).netloc != request.host:
+        return jsonify(error="forbidden"), 403
 
 def db():
     c = sqlite3.connect(DB, timeout=30)
@@ -326,9 +333,16 @@ def stop(j):
     return jsonify(ok=1)
 
 
+def job_active(c, j):
+    st = c.execute("SELECT status FROM jobs WHERE id=?", (j,)).fetchone()
+    return bool(st) and st[0] in ("queued", "running")
+
+
 @app.post("/api/jobs/<int:j>/reset")
 def reset(j):
     with db() as c:
+        if job_active(c, j):
+            return jsonify(ok=0, error="Stop this job first")
         for t in ("places", "logs", "reqs"):
             c.execute(f"DELETE FROM {t} WHERE job_id=?", (j,))
         c.execute("UPDATE jobs SET status='idle', done=0 WHERE id=?", (j,))
@@ -338,6 +352,8 @@ def reset(j):
 @app.post("/api/jobs/<int:j>/delete")
 def delete(j):
     with db() as c:
+        if job_active(c, j):
+            return jsonify(ok=0, error="Stop this job first")
         for t in ("places", "logs", "reqs"):
             c.execute(f"DELETE FROM {t} WHERE job_id=?", (j,))
         c.execute("DELETE FROM jobs WHERE id=?", (j,))
@@ -398,7 +414,7 @@ def export():
     out = io.StringIO()
     wr = csv.writer(out)
     wr.writerow(cols)
-    wr.writerows([tuple(x) for x in rows])
+    wr.writerows(csv_safe(x) for x in rows)
     return Response(out.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=places.csv"})
 
 
@@ -585,7 +601,7 @@ def cli_run(argv):
         w = csv.writer(f)
         w.writerow(["area", "name", "category", "rating", "reviews", "address", "phone", "website", "lat", "lng", "found_by"])
         for r in rows:
-            w.writerow([labels[r["job_id"]]] + list(tuple(r)[1:]))
+            w.writerow(csv_safe([labels[r["job_id"]]] + list(tuple(r)[1:])))
     print(f"\nDone: {len(rows)} unique places -> {a.out}  (also in gmaps.db, viewable in the dashboard)")
 
 

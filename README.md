@@ -10,11 +10,7 @@ It all runs on your own machine, on Windows, macOS or Linux.
 | `nykaa-scraper/` | Nykaa Scraper: crawls Nykaa brands into a local database | 8765 | Python 3.10+ |
 | `nykaa_mapper/` | Nykaa Mapper: turns scraped data into the import template | 8766 | Python 3.11+ |
 | `pdfcraft/` | Solist PDF: merge, split, compress, convert and sign PDFs | 8090 | Node.js 20+ to build, Python to serve |
-| `upi-id/` | UPI Gateway (YouPI): local payment gateway | 8091 | Node.js 24+ |
-| `accounting/` | GST Billing: invoices, clients, products, expenses | 8092 | Node.js 18+ |
 | `excalidraw/` | Solist Draw: whiteboard for sketches and diagrams | 8093 | Node.js 18+ to build, Python to serve |
-
-UPI Gateway also opens its own services on 6001, 6002, 6003, 6100, 7000 and 5010.
 
 ## 1. Install the prerequisites (once)
 
@@ -39,7 +35,7 @@ Each tool gets its own Python environment or Node packages inside its folder.
 | Windows | double-click `setup.bat` |
 | macOS / Linux | `./setup.sh` |
 
-To set up only some tools, name them: `./setup.sh pdfcraft accounting`. Solist PDF takes the longest
+To set up only some tools, name them: `./setup.sh pdfcraft excalidraw`. Solist PDF takes the longest
 because it builds the whole site.
 
 ## 4. Launch
@@ -58,8 +54,8 @@ needs setup, its checklist has a button for that. Closing the Hub window stops e
 Every tool folder has its own `setup` and `start` scripts (`.sh` for macOS/Linux, `.bat` for Windows):
 
 ```bash
-cd accounting
-./start.sh        # then open http://localhost:8092
+cd excalidraw
+./start.sh        # then open http://localhost:8093
 ```
 
 ## What is not in the repo
@@ -71,13 +67,6 @@ over yourself:
 - `map_scrapper/gmaps.db`
 - `nykaa-scraper/nykaa.db`
 - `nykaa_mapper/studio.db`
-- `accounting/data/`
-- `upi-id/data/`
-
-## Settings
-
-`upi-id/.env` is created from `.env.example` the first time you run setup. Edit it for real merchant
-details. Never commit it.
 
 ## Troubleshooting
 
@@ -85,7 +74,6 @@ details. Never commit it.
 - **Python environment missing**: run that tool's `setup` script again.
 - **Linux, the scraper's browser won't start**: `sudo map_scrapper/.venv-linux/bin/python -m playwright install-deps chromium`.
 
-`upi-id` comes from [YouPI-PG](https://github.com/youpi-pg/YouPI-PG). `accounting` comes from
-[Free-GST-Billing-Software](https://github.com/IamRamgarhia/Free-GST-Billing-Software). `excalidraw` is Solist Draw, a fork of
+`excalidraw` is Solist Draw, a fork of
 [Excalidraw](https://github.com/excalidraw/excalidraw) at dd2f8fc3. `pdfcraft` is a
 fork of PDFCraft. Each keeps its own license file.

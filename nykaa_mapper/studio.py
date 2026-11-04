@@ -328,6 +328,12 @@ def state():
 
 
 # ------------------------------------------------------------------ http
+def foreign_origin(headers):
+    """True when a browser sent this command from another website."""
+    origin = headers.get("Origin")
+    return bool(origin) and urlparse(origin).netloc != headers.get("Host")
+
+
 class S(BASE):
     def log_message(self, *a):
         pass
@@ -375,6 +381,8 @@ class S(BASE):
         self.send(b"not found", "text/plain", code=404)
 
     def do_POST(self):
+        if foreign_origin(self.headers):
+            return self.send_error(403)
         p = urlparse(self.path).path
         if not p.startswith("/studio/"):
             if HAVE_SCRAPER:

@@ -1,6 +1,6 @@
 """Share Solist Hub over the internet through ngrok, always behind a username and password.
 
-    share.sh (Ubuntu) / share.bat (Windows) / python share.py      add --no-auth to share without a password
+    share.sh (Ubuntu) / share.bat (Windows) / python share.py
 
 The login is kept in hub/.share-credentials (made on first run, private to you, never commit it).
 A fixed address: put  domain=<your-name>.ngrok-free.app  in that file, or set SOLIST_NGROK_DOMAIN.
@@ -95,8 +95,7 @@ def main():
                  "  2. Copy your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken\n"
                  "  3. Run:  ngrok config add-authtoken <token>\n"
                  "Then start this again.")
-    no_auth = "--no-auth" in sys.argv
-    user, pw, domain, made = ("", "", os.environ.get("SOLIST_NGROK_DOMAIN", ""), False) if no_auth else credentials()
+    user, pw, domain, made = credentials()
 
     hub = None
     if not up(PORT):
@@ -114,9 +113,7 @@ def main():
 
     # shortcut: the password is on ngrok's command line (visible to other users of this computer in the process
     # list); move it to an ngrok traffic-policy file if this computer has other accounts.
-    cmd = [exe, "http", f"127.0.0.1:{PORT}", "--log", "stdout", "--log-format", "json"]
-    if not no_auth:
-        cmd += ["--basic-auth", f"{user}:{pw}"]
+    cmd = [exe, "http", f"127.0.0.1:{PORT}", "--log", "stdout", "--log-format", "json", "--basic-auth", f"{user}:{pw}"]
     if domain:
         cmd += ["--url", domain]
     ng = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
@@ -131,12 +128,9 @@ def main():
             if e.get("url") and not shown:
                 shown = True
                 print(f"\nSolist Hub is online:  {e['url']}")
-                if no_auth:
-                    print("  NO PASSWORD: anyone with this address can start and stop programs on this computer.")
-                else:
-                    print(f"  user:      {user}")
-                    print(f"  password:  {pw}   (shown once; it is saved in {CRED})" if made else
-                          f"  password:  in {CRED}")
+                print(f"  user:      {user}")
+                print(f"  password:  {pw}   (shown once; it is saved in {CRED})" if made else
+                      f"  password:  in {CRED}")
                 print("Tool pages (Maps, Nykaa, PDF ...) open only on this computer; start, stop and logs work online.")
                 print("Press Ctrl+C or close this window to stop sharing.\n", flush=True)
             elif e.get("lvl") in ("eror", "crit") or e.get("err") not in (None, "<nil>"):

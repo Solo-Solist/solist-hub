@@ -430,6 +430,12 @@ def split_steps(s):
     return steps
 
 
+def csv_safe(row):
+    """Stop spreadsheets running scraped text as a formula; phone numbers and negative numbers stay as they are."""
+    return ["'" + v if isinstance(v, str) and v[:1] in ("=", "+", "-", "@") and not re.fullmatch(r"[+-]?[\d\s().-]+", v) else v
+            for v in row]
+
+
 def export_table(rows):
     """rows in COLS order -> (header, rows) with image_1..N, description_image_1..N, how_to_use_1..N columns."""
     ix = {c: i for i, c in enumerate(COLS)}
@@ -473,7 +479,7 @@ def export(con, base):
     with open(fn, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(hdr)
-        w.writerows(out)
+        w.writerows(csv_safe(r) for r in out)
     print(f"wrote {fn} ({len(out)} variant rows)")
 
 

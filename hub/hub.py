@@ -21,6 +21,18 @@ NO_WINDOW = 0x08000000 if WIN else 0    # run tools without a console window
 VENV = ".venv" if WIN else ".venv-linux"
 
 
+def use_newest_nvm_node():
+    """Desktop launchers get no nvm setup, and nvm's default may be too old: put its newest Node first for the tools."""
+    found = [(tuple(map(int, m.groups())), p) for p in (Path.home() / ".nvm" / "versions" / "node").glob("v*")
+             if (m := re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", p.name))]
+    if found:
+        os.environ["PATH"] = f"{max(found)[1] / 'bin'}{os.pathsep}{os.environ['PATH']}"
+
+
+if not WIN:
+    use_newest_nvm_node()
+
+
 def venv_python(folder):
     """The python of the tool's own environment (made by its setup script), or None."""
     base = TOOLS_DIR / folder
@@ -155,16 +167,6 @@ def checks_pdf():
     return [["Built", (PDF_OUT / "index.html").exists(), "run pdfcraft setup once (needs Node.js)", "pdf_build"]]
 
 
-def checks_node(folder, built=None):
-    """Node packages installed (and the app built, when it has a build step)."""
-    base = TOOLS_DIR / folder
-    out = [["Node.js installed", npm() is not None, "nodejs.org, version 20 or newer", None],
-           ["Packages installed", (base / "node_modules").exists(), f"run {folder}/setup once", f"{folder}_setup"]]
-    if built:
-        out.append(["Built", (base / built).exists(), f"run {folder}/setup once", f"{folder}_setup"])
-    return out
-
-
 def npm():
     """npm as installed here (npm.cmd with the Node installer, npm.exe with nvm shims), or None."""
     return shutil.which("npm")
@@ -189,8 +191,6 @@ def actions():
         "mapper_setup": ("Set up Python environment", script("setup"), "nykaa_mapper", "console"),
         "mapper_exports": ("Open exports folder", None, "nykaa_mapper/exports", "folder"),
         "mapper_inbox": ("Open inbox folder", None, "nykaa_mapper/inbox", "folder"),
-        "upi-id_setup": ("Install packages", script("setup"), "upi-id", "console"),
-        "accounting_setup": ("Install and build", script("setup"), "accounting", "console"),
         "excalidraw_setup": ("Install and build", script("setup"), "excalidraw", "console"),
         "pdf_build": ("Rebuild Solist PDF (needs Node.js)", build, "pdfcraft", "log"),
         "pdf_out": ("Open built files", None, "pdfcraft/out", "folder"),
@@ -215,19 +215,13 @@ TOOLS = [
          desc="Merge, split, compress, convert, sign and edit PDFs. Everything runs on this PC.",
          cmd=lambda: [sys.executable, str(HUB / "static_server.py"), str(PDF_OUT), "8090"],
          stats=stats_pdf, checks=checks_pdf, actions=["pdf_build", "pdf_out"]),
-    dict(id="upi", name="UPI Gateway", group="Payments", folder="upi-id", port=8091,
-         desc="YouPI payment gateway running locally: control center, checkout, merchant admin.",
-         cmd=lambda: script("start"), stats=lambda: [["Mode", "localhost"]],
-         checks=lambda: checks_node("upi-id"), actions=["upi-id_setup"]),
-    dict(id="accounting", name="GST Billing", group="Documents", folder="accounting", port=8092,
-         desc="GST invoices, clients, products and expenses. Data stays in accounting/data.",
-         cmd=lambda: script("start"), stats=lambda: [["Data folder", "accounting/data"]],
-         checks=lambda: checks_node("accounting", "dist/index.html"), actions=["accounting_setup"]),
     dict(id="excalidraw", name="Solist Draw", group="Documents", folder="excalidraw", port=8093,
          desc="Whiteboard for sketches and diagrams. Drawings stay in this browser unless you share them.",
          cmd=lambda: [sys.executable, str(HUB / "static_server.py"), str(TOOLS_DIR / "excalidraw" / "excalidraw-app" / "build"), "8093"],
          stats=lambda: [["Drawings saved in", "this browser"]],
-         checks=lambda: checks_node("excalidraw", "excalidraw-app/build/index.html"), actions=["excalidraw_setup"]),
+         checks=lambda: [["Built", (TOOLS_DIR / "excalidraw/excalidraw-app/build/index.html").exists(),
+                           "run excalidraw/setup once (needs Node.js)", "excalidraw_setup"]],
+         actions=["excalidraw_setup"]),
 ]
 BY_ID = {t["id"]: t for t in TOOLS}
 
@@ -262,9 +256,22 @@ class Proc:
     def running(self):
         return self.p is not None and self.p.poll() is None
 
+    def trim_log(self):
+        """Keep the newest 1 MB once a tool's log passes 5 MB."""
+        path = LOGS / f"{self.tool['id']}.log"
+        try:
+            if path.stat().st_size > 5_000_000:
+                with open(path, "rb") as f:
+                    f.seek(-1_000_000, os.SEEK_END)
+                    tail = f.read()
+                path.write_bytes(tail[tail.find(b"\n") + 1:])
+        except OSError:
+            pass
+
     def start(self):
         if self.running():
             return "already running"
+        self.trim_log()
         t = self.tool
         if port_up(t["port"]):
             return f"port {t['port']} is already in use by another program - close it first"
@@ -464,6 +471,10 @@ class H(BaseHTTPRequestHandler):
         m = re.match(r"^/t/([a-z]+)(/.*)?$", self.path)
         if not m or m[1] not in BY_ID or m[1] == "pdf":
             return False
+        origin = self.headers.get("Origin")
+        if self.command not in ("GET", "HEAD") and origin and urlparse(origin).netloc != self.headers.get("Host"):
+            self.send('{"error":"forbidden"}', code=403)      # another website must not drive a tool through the Hub
+            return True
         if not m[2]:                                         # /t/maps -> /t/maps/ so relative links resolve
             self.send_response(301)
             self.send_header("Location", f"/t/{m[1]}/")
@@ -563,7 +574,7 @@ class H(BaseHTTPRequestHandler):
 # ------------------------------------------------------------------ the Hub's own window
 def browser_exe():
     if not WIN:
-        names = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge",
+        names = ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "microsoft-edge",
                  "microsoft-edge-stable", "brave-browser")
         return next((shutil.which(n) for n in names if shutil.which(n)), None)
     bases = [os.environ.get(k, "") for k in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")]
@@ -575,6 +586,8 @@ def browser_exe():
 # The window's browser profile. Ubuntu keeps its own in ~/.config (the Windows Edge profile in hub/.window is
 # not usable by Chrome on Linux, and snap browsers cannot write to removable drives).
 PROFILE = HUB / ".window" if WIN else Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "solist-hub" / "window"
+if not WIN and Path("/snap/bin/chromium").exists():      # snap Chromium may only write inside its own snap folder
+    PROFILE = Path.home() / "snap" / "chromium" / "common" / "solist-hub-window"
 
 
 def open_window():

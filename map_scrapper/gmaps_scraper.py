@@ -267,6 +267,12 @@ def scrape(query=None, url=None, max_results=20, n_reviews=0, headless=True, ste
     return results
 
 
+def csv_safe(row):
+    """Stop spreadsheets running scraped text as a formula; phone numbers and negative numbers stay as they are."""
+    return ["'" + v if isinstance(v, str) and v[:1] in ("=", "+", "-", "@") and not re.fullmatch(r"[+-]?[\d\s().-]+", v) else v
+            for v in row]
+
+
 def save(results, out):
     with open(f"{out}.json", "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
@@ -276,7 +282,7 @@ def save(results, out):
     with open(f"{out}.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=flat_keys, extrasaction="ignore")
         w.writeheader()
-        w.writerows(results)
+        w.writerows(dict(zip(flat_keys, csv_safe(r.get(k) for k in flat_keys))) for r in results)
     print(f"Saved {len(results)} rows -> {out}.json, {out}.csv")
 
 

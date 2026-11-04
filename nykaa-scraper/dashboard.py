@@ -230,8 +230,14 @@ def export(kind, u):
     s = io.StringIO()
     w = csv.writer(s)
     w.writerow(h)
-    w.writerows(rows)
+    w.writerows(crawler.csv_safe(r) for r in rows)
     return ("\ufeff" + s.getvalue()).encode("utf-8")
+
+
+def foreign_origin(headers):
+    """True when a browser sent this command from another website."""
+    origin = headers.get("Origin")
+    return bool(origin) and urlparse(origin).netloc != headers.get("Host")
 
 
 class H(BaseHTTPRequestHandler):
@@ -269,6 +275,8 @@ class H(BaseHTTPRequestHandler):
             self.send(PAGE.encode(), "text/html; charset=utf-8")
 
     def do_POST(self):
+        if foreign_origin(self.headers):
+            return self.send_error(403)
         d = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or "{}")
         p, out = urlparse(self.path).path, {"ok": True}
         running = ST["thread"] and ST["thread"].is_alive()

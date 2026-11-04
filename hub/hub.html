@@ -84,13 +84,11 @@ maps:'<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="
 nykaa:'<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
 studio:'<path d="M4 7h11M4 12h7M4 17h11"/><path d="M17 10l3 2-3 2"/>',
 transcriber:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
-upi:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/>',
-accounting:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
 pdf:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
 excalidraw:'<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/>',
 };
-const COLOR={pdf:'#e5484d',maps:'var(--acc)',nykaa:'#e85b9a',studio:'#b794f6',upi:'#30a46c',accounting:'#3e63dd',excalidraw:'#6965db'};
-const SHORT={maps:'Maps',nykaa:'Nykaa',studio:'Mapper',pdf:'PDF',upi:'UPI',accounting:'GST',excalidraw:'Draw'};
+const COLOR={pdf:'#e5484d',maps:'var(--acc)',nykaa:'#e85b9a',studio:'#b794f6',excalidraw:'#6965db'};
+const SHORT={maps:'Maps',nykaa:'Nykaa',studio:'Mapper',pdf:'PDF',excalidraw:'Draw'};
 const svg=(k,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||ICON.overview}</svg>`;
 const LABEL={running:'running',starting:'starting…','setting up':'installing…',external:'running outside Hub',stopped:'stopped'};
 const CHIP={running:'c-ok',starting:'c-acc','setting up':'c-acc',external:'c-ext',stopped:'c-none'};
@@ -106,12 +104,11 @@ function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';cl
 async function act(id,a){const r=await fetch(`/api/${a}?id=${id}`,{method:'POST',headers:{'X-Solist-Hub':'1'}}).then(r=>r.json()).catch(()=>({result:'Hub is not running'}));
  if(r.result&&r.result!=='ok'&&r.result!=='not running')toast(r.result);setTimeout(load,350)}
 const isOn=t=>t.status!=='stopped'&&t.status!=='external';
-const userOff=new Set(),framePath={};
+const framePath={};
 function toggle(id,ev){ev&&ev.stopPropagation();const t=S.find(x=>x.id===id);if(t.status==='external')return toast(`${t.name} was started outside the Hub. Close its own window to stop it.`);
- if(isOn(t))userOff.add(id);else userOff.delete(id);act(id,isOn(t)?'stop':'start')}
-function go(id){cur=id;lsSet('hub.cur',id);frameKey=null;render();pullLogs();autoStart()}
+ act(id,isOn(t)?'stop':'start')}
+function go(id){cur=id;lsSet('hub.cur',id);frameKey=null;render();pullLogs()}
 function ready(t){return (t.checks||[]).every(c=>c[1]||!c[5])}
-function autoStart(){const t=S.find(x=>x.id===cur);if(t&&t.port&&t.status==='stopped'&&ready(t)&&!userOff.has(t.id)){userOff.add(t.id);act(t.id,'start')}}
 async function doAction(id,a,how){closeMenus();const r=await fetch(`/api/action?id=${id}&a=${a}`,{method:'POST',headers:{'X-Solist-Hub':'1'}}).then(r=>r.json()).catch(()=>({result:'Hub is not running'}));
  if(r.result&&r.result.startsWith('url:'))return window.open(r.result.slice(4),'_blank');
  if(r.result!=='ok')return toast(r.result||r.error);toast(how==='console'?'Opened in its own window':how==='log'?'Running… see the log':'Done');
@@ -170,7 +167,7 @@ async function pullLogs(){if(cur==='overview')return;const id=cur;const rows=awa
  logSeq[id]=rows[rows.length-1][0];logBuf[id]=(logBuf[id]||[]).concat(rows).slice(-1500);if(id===cur)drawLogs()}
 function drawLogs(){const el=$('#lg');if(!el)return;const stick=el.scrollTop+el.clientHeight>=el.scrollHeight-30;
  el.innerHTML=(logBuf[cur]||[]).map(r=>`<div><time>${r[1]}</time>${esc(r[2])}</div>`).join('')||'<span class="mute">No output yet</span>';if(stick)el.scrollTop=el.scrollHeight}
-async function load(){try{[S,E]=await Promise.all([fetch('/api/state').then(r=>r.json()),fetch('/api/events').then(r=>r.json())]);$('#banner').hidden=true;if(!lastOk)frameKey=null;lastOk=true;render();autoStart()}
- catch(e){if(lastOk){$('#banner').hidden=false;$('#banner').textContent='The Hub has stopped, and its tools with it. Start it again with launch.bat on Windows, launch.command on macOS or ./launch.sh on Linux. This page reconnects by itself.';S.forEach(t=>{t.status='stopped';t.uptime=0;t.pid=null});S.forEach(t=>userOff.add(t.id));frameKey=null;render()}lastOk=false}}
+async function load(){try{[S,E]=await Promise.all([fetch('/api/state').then(r=>r.json()),fetch('/api/events').then(r=>r.json())]);$('#banner').hidden=true;if(!lastOk)frameKey=null;lastOk=true;render()}
+ catch(e){if(lastOk){$('#banner').hidden=false;$('#banner').textContent='The Hub has stopped, and its tools with it. Start it again with launch.bat on Windows, launch.command on macOS or ./launch.sh on Linux. This page reconnects by itself.';S.forEach(t=>{t.status='stopped';t.uptime=0;t.pid=null});frameKey=null;render()}lastOk=false}}
 load();setInterval(load,2500);setInterval(pullLogs,1200);setTimeout(pullTx,1500);setInterval(pullTx,30000);
 </script></body></html>

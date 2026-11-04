@@ -33,8 +33,3 @@ nykaa-scraper/*.csv
 nykaa_mapper/exports/
 nykaa_mapper/inbox/
 nykaa_mapper/folders.json
-upi-id/data/
-upi-id/reports/
-accounting/data/
-accounting/Saved Invoices/
-accounting/Trash/
