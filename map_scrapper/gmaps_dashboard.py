@@ -12,7 +12,7 @@ Terminal mode (no web server):
 
 Needs gmaps_scraper.py in the same folder (parser + browser actions).
 """
-import csv, io, json, math, queue, random, traceback, re, sqlite3, subprocess, signal, os, sys, threading, time, urllib.parse, urllib.request
+import csv, io, json, math, queue, random, traceback, re, sqlite3, subprocess, signal, os, sys, threading, time, urllib.error, urllib.parse, urllib.request
 from flask import Flask, Response, jsonify, request
 from scrapling.fetchers import DynamicSession, StealthySession
 from gmaps_scraper import csv_safe, FEED, PLACE_SEL, make_scroll_action, parse_place, _accept_consent
@@ -28,6 +28,14 @@ def block_other_websites():
     origin = request.headers.get("Origin")
     if request.method not in ("GET", "HEAD") and origin and urllib.parse.urlparse(origin).netloc != request.host:
         return jsonify(error="forbidden"), 403
+
+@app.after_request
+def embeddable(resp):
+    # Lets the Solist Hub show this page in its tab while the Hub is cross-origin isolated (for Solist PDF).
+    resp.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+    resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    return resp
+
 
 def db():
     c = sqlite3.connect(DB, timeout=30)
@@ -83,7 +91,12 @@ def http_json(url):
     req = urllib.request.Request(url, headers={"User-Agent": "gmaps-dashboard/1.0"})
     try:
         return json.load(urllib.request.urlopen(req, timeout=20))
-    except Exception:  # e.g. macOS Python missing CA certs; this is public geodata, so retry unverified
+    except urllib.error.URLError as e:
+        if not isinstance(e.reason, ssl.SSLCertVerificationError):
+            raise
+        # macOS python.org Python ships without CA certificates until "Install Certificates.command" is run.
+        # This is public geodata only (no logins), so retry without the check and say so in the terminal.
+        print("[warn] HTTPS certificates are not set up for this Python; fetching public geodata without the check", flush=True)
         return json.load(urllib.request.urlopen(req, timeout=20, context=ssl._create_unverified_context()))
 
 
@@ -327,7 +340,7 @@ def W():
 def jobs():
     with db() as c:
         rows = c.execute("""SELECT j.*, (SELECT COUNT(*) FROM places WHERE job_id=j.id) n,
-            (SELECT COUNT(*) FROM places WHERE job_id=j.id AND phone IS NOT NULL) ph,
+            (SELECT COUNT(*) FROM places WHERE job_id=j.id AND COALESCE(phone,'')<>'') ph,
             (SELECT COUNT(*) FROM logs WHERE job_id=j.id AND level='ERROR') err
             FROM jobs j ORDER BY id DESC""").fetchall()
     return jsonify([dict(r) for r in rows])
@@ -404,7 +417,7 @@ def places():
 def stats():
     w, a = W()
     fields = {"name": "name IS NOT NULL", "category": "category IS NOT NULL", "rating": "rating IS NOT NULL",
-              "reviews": "reviews_count IS NOT NULL", "address": "address IS NOT NULL", "phone": "phone IS NOT NULL",
+              "reviews": "reviews_count IS NOT NULL", "address": "address IS NOT NULL", "phone": "COALESCE(phone,'')<>''",
               "website": "website IS NOT NULL", "coordinates": "lat IS NOT NULL",
               "hours": "raw NOT LIKE '%\"hours\": null%'", "amenities": "raw NOT LIKE '%\"attributes\": null%'",
               "photo": "raw NOT LIKE '%\"photo\": null%'"}

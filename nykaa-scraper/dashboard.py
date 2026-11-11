@@ -244,6 +244,12 @@ class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def end_headers(self):
+        # Lets the Solist Hub show this page in its tab while the Hub is cross-origin isolated (for Solist PDF).
+        self.send_header("Cross-Origin-Embedder-Policy", "credentialless")
+        self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+        super().end_headers()
+
     def send(self, body, ctype="application/json", name=None):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
@@ -283,7 +289,8 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/add":
             u = d.get("url", "").strip().split("?")[0]
             pg = str(d.get("pages", "")).strip()
-            if "nykaa.com" not in u:
+            host = (urlparse(u).hostname or "").lower()
+            if not (host == "nykaa.com" or host.endswith(".nykaa.com")):
                 out = {"error": "Paste a valid Nykaa brand link"}
             elif any(e["url"] == u for e in load()):
                 out = {"error": "Brand already in queue"}

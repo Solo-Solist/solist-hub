@@ -31,8 +31,10 @@ Nothing is sent to a server.
 
 ## 1. Install the prerequisites (once)
 
+Python 3.11+ and Node.js 20+ cover every tool (some need less, see the table above).
+
 - **Python 3.11+**: [python.org](https://www.python.org/downloads/). Windows: `winget install -e --id Python.Python.3.12`. Ubuntu: `sudo apt install -y python3 python3-venv python3-pip`. macOS: `brew install python`.
-- **Node.js 24+**: [nodejs.org](https://nodejs.org). Windows: `winget install -e --id OpenJS.NodeJS`. macOS: `brew install node`.
+- **Node.js 20+**: [nodejs.org](https://nodejs.org). Windows: `winget install -e --id OpenJS.NodeJS`. macOS: `brew install node`.
 - **Git**: [git-scm.com](https://git-scm.com).
 - Chrome or Edge is optional. With one installed, the Hub opens in its own app window.
 

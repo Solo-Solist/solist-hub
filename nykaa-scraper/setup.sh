@@ -7,7 +7,8 @@ VENV=.venv-linux
 
 if ! command -v python3 >/dev/null 2>&1 || ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))'; then
   echo "Python 3.10 or newer is needed. Install it with:"
-  echo "  sudo apt update && sudo apt install -y python3 python3-venv python3-pip"
+  echo "  Ubuntu: sudo apt update && sudo apt install -y python3 python3-venv python3-pip"
+  echo "  macOS:  brew install python"
   exit 1
 fi
 if [ ! -x "$VENV/bin/python" ]; then

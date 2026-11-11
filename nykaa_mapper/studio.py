@@ -338,6 +338,12 @@ class S(BASE):
     def log_message(self, *a):
         pass
 
+    def end_headers(self):
+        # Lets the Solist Hub show this page in its tab while the Hub is cross-origin isolated (for Solist PDF).
+        self.send_header("Cross-Origin-Embedder-Policy", "credentialless")
+        self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+        super().end_headers()
+
     def send(self, body, ctype="application/json", name=None, code=200):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
@@ -475,6 +481,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>Nykaa Studio<
 @media(max-width:1000px){.g6,.g3,.g2,.g21{grid-template-columns:1fr 1fr}}
 .top,.hero,.row{display:flex;align-items:center;gap:12px}.top{justify-content:space-between;flex-wrap:wrap}.grow{flex:1}
 .logo{width:46px;height:46px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-weight:700}
+[hidden]{display:none!important}
 .pill{border-radius:999px;background:var(--card);border:1px solid var(--line);padding:9px 16px;display:inline-flex;align-items:center;gap:8px}
 .dot{width:9px;height:9px;border-radius:50%;background:#bbb}.dot.on{background:var(--ac);animation:p 1s infinite}@keyframes p{50%{opacity:.3}}
 .nav a{cursor:pointer;text-decoration:none;color:var(--ink)}.nav a.cur{background:#111;color:#fff}
@@ -497,7 +504,7 @@ table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--mute);f
 label.ck{display:flex;gap:8px;align-items:center;padding:5px 0;cursor:pointer}
 </style></head><body><div class="app" id="top">
 <div class="top"><div class="row"><div class="logo">N°</div><div><b>Nykaa Studio</b><br><span class="mute">Scrape · Convert · Review · Export</span></div></div>
-<div class="row nav"><a class="pill cur" onclick="goto('top',this)">Convert</a><a class="pill" onclick="goto('rv',this)">Review</a><a class="pill" onclick="goto('ex',this)">Exports</a><a class="pill" onclick="goto('lg',this)">Logs</a><a class="pill" id="scb" onclick="openScraper()">Scraper ↗</a>
+<div class="row nav"><a class="pill cur" onclick="goto('top',this)">Convert</a><a class="pill" onclick="goto('rv',this)">Review</a><a class="pill" onclick="goto('ex',this)">Exports</a><a class="pill" onclick="goto('lg',this)">Logs</a><a class="pill" id="scb" hidden onclick="openScraper()">Scraper ↗</a>
 <div class="pill" id="st"></div></div></div>
 <div class="hero" style="margin:18px 0 6px"><div class="grow"><h1>Nykaa Mapper</h1><h1><span>Tick brands or files, name the export, press start.</span></h1></div>
 <input id="en" placeholder="Export name (optional)" size="26"><button class="go" id="go" onclick="start()">▶</button></div>
@@ -554,7 +561,8 @@ function drawReview(force){const q=($('#rq').value||'').toLowerCase(),sig=JSON.s
  $('#rl').innerHTML=rows.length?'<table><tr><th>Product</th><th>Guess</th><th>Sure?</th><th>Why</th><th>Correct item</th><th></th></tr>'+rows.map(([r,i])=>`<tr><td>${esc(r.title.slice(0,70))}<br><span class="mute">${esc(r.brand)}</span></td><td>${esc(r.predicted||'—')}<br><span class="mute">alt: ${esc(r.alt||'—')}</span></td><td><span class="tag ${r.confidence}">${r.confidence}</span></td><td class="mute">${esc(r.reasons)}</td>
  <td><select class="sel" id="o${i}" onchange="PEND['${r.key.replace(/'/g,"")}']=this.value">${opts(PEND[r.key]||r.override||r.predicted)}</select></td><td><button class="btn s" onclick="saveOv(${i})">${r.override?'Saved ✓':'Save'}</button></td></tr>`).join('')+'</table>':'<span class="mute">Nothing to review 🎉</span>'}
 function drawLog(){$('#tl').innerHTML=S.events.filter(e=>!F||e.level==F).map(e=>`<div class="ev ${e.level}"><i></i><time>${e.ts.slice(5,19)}</time><span>${esc(e.msg)}</span></div>`).join('')||'<span class="mute">No activity yet</span>'}
-function draw(){const j=S.job,run=j.running,c=S.cur,st=c?c.stats:null;
+function draw(){$('#scb').hidden=!S.scraper;  // the Solist Hub runs the scraper as its own tool, so no dead button here
+ const j=S.job,run=j.running,c=S.cur,st=c?c.stats:null;
  $('#st').innerHTML=`<i class="dot ${run?'on':''}"></i>${run?esc(j.name)+' · '+j.done+'/'+j.total:'Idle'}`;$('#go').textContent=run?'…':'▶';$('#go').className='go'+(run?' stop':'');$('#jm').textContent=run?j.msg:'';
  const pct=st&&st.rows?Math.round(st.assigned/st.rows*100):0,hm=st?((st.conf.High||0)+(st.conf.Manual||0)+(st.conf.Medium||0)):0;
  $('#kpis').innerHTML=[['▣','Rows converted',st?st.rows:0,c?esc(c.name):'—'],['✓','Item matched',st?st.assigned:0,pct+'% of rows'],['!','To review',st?st.review:0,'low / missing','bad'],

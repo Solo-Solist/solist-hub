@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 PORT = 9000
+ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 HUB = Path(__file__).resolve().parent
 ROOT = HUB.parent                       # the "Solist Project" folder (any drive / mount point)
 TOOLS_DIR = ROOT                        # each tool sits in its own folder here
@@ -143,12 +144,48 @@ def stats_pdf():
 
 
 # ------------------------------------------------------------------ checklists: [label, ok?, hint, fix action, required]
+_REQ_CACHE = {}
+
+
+def missing_packages(folder):
+    """Packages from the tool's requirements.txt that its environment does not have yet ([] = all installed).
+
+    A half-finished setup leaves the environment folder behind, so its existence alone does not mean ready.
+    pip writes <name>-<version>.dist-info only once a package is fully installed, so look for those.
+    """
+    py = venv_python(folder)
+    req = TOOLS_DIR / folder / "requirements.txt"
+    if not py or not req.exists():
+        return ["environment"] if not py else []
+    env = py.parent.parent
+    sites = list(env.glob("lib/python*/site-packages")) + list(env.glob("Lib/site-packages"))
+    try:
+        key = (req.stat().st_mtime, *(s.stat().st_mtime for s in sites))
+    except OSError:
+        key = None
+    hit = _REQ_CACHE.get(folder)
+    if hit and hit[0] == key:
+        return hit[1]
+    have = {p.name.lower().split("-")[0] for s in sites for p in s.glob("*.dist-info")}
+    want = []
+    for line in req.read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if line:
+            want.append(re.split(r"[\[=<>~! ;]", line, maxsplit=1)[0])
+    missing = [w for w in want if re.sub(r"[-.]", "_", w.lower()) not in have]
+    _REQ_CACHE[folder] = (key, missing)
+    return missing
+
+
 def venv_ready(folder):
-    return venv_python(folder) is not None
+    return venv_python(folder) is not None and not missing_packages(folder)
 
 
 def venv_hint(folder):
-    return str(Path(folder) / VENV)
+    if venv_python(folder) is None:
+        return f"Not set up yet ({Path(folder) / VENV})"
+    miss = missing_packages(folder)
+    return f"Setup did not finish ({', '.join(miss[:3])} missing). Run it again." if miss else str(Path(folder) / VENV)
 
 
 def checks_maps():
@@ -160,7 +197,7 @@ def checks_nykaa():
 
 
 def checks_mapper():
-    return [["Python environment", venv_ready("nykaa_mapper") or venv_ready("nykaa-scraper"), venv_hint("nykaa_mapper"), "mapper_setup"]]
+    return [["Python environment", venv_ready("nykaa_mapper"), venv_hint("nykaa_mapper"), "mapper_setup"]]
 
 
 def checks_pdf():
@@ -222,10 +259,25 @@ TOOLS = [
 BY_ID = {t["id"]: t for t in TOOLS}
 
 EVENTS = collections.deque(maxlen=300)
+EVENTS_FILE = LOGS / "events.log"                       # one JSON line per event, so Activity survives a restart
+try:
+    for _line in EVENTS_FILE.read_text(encoding="utf-8").splitlines()[-300:]:
+        EVENTS.appendleft(tuple(json.loads(_line)))
+except (OSError, ValueError):
+    pass
 
 
 def event(level, tool, msg):
-    EVENTS.appendleft((datetime.now().strftime("%Y-%m-%d %H:%M:%S"), tool, level, msg))
+    e = (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), tool, level, msg)
+    EVENTS.appendleft(e)
+    try:
+        if EVENTS_FILE.exists() and EVENTS_FILE.stat().st_size > 1_000_000:   # keep it small: the newest 300 only
+            EVENTS_FILE.write_text("".join(json.dumps(list(x)) + "\n" for x in reversed(EVENTS)), encoding="utf-8")
+        else:
+            with open(EVENTS_FILE, "a", encoding="utf-8") as f:
+                f.write(json.dumps(list(e)) + "\n")
+    except OSError:
+        pass
 
 
 def open_folder(path):
@@ -236,11 +288,13 @@ class Proc:
     def __init__(self, tool):
         self.tool, self.p, self.started = tool, None, 0
         self.acting = None                                  # the one log-mode action running now
+        self.stopping = False                               # True while the Hub itself is stopping this tool
         self.lines = collections.deque(maxlen=3000)
         self.seq = 0
         self.lock = threading.Lock()
 
     def add(self, text):
+        text = ANSI.sub("", text)                           # colour codes from Flask, npm, ... would show as junk
         with self.lock:
             self.seq += 1
             self.lines.append((self.seq, datetime.now().strftime("%H:%M:%S"), text))
@@ -279,6 +333,7 @@ class Proc:
         env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8", "BROWSER": "none",
                "SOLIST_THEME": THEME, **t.get("env", {})}
         self.add(f"── start: {t['name']}")
+        self.stopping = False
         # Ubuntu: a process group of its own, so Stop also ends whatever the tool started (like taskkill /T on Windows).
         own = dict(creationflags=NO_WINDOW) if WIN else dict(start_new_session=True)
         try:
@@ -296,8 +351,8 @@ class Proc:
             self.add(raw.decode("utf-8", "replace").rstrip())
         code = p.wait()
         self.add(f"── stopped (exit code {code})")
-        if code not in (0, 1, -signal.SIGTERM):            # taskkill /F gives 1, SIGTERM -15: a normal Stop
-            event("error", self.tool["name"], f"exited (code {code})")
+        if not self.stopping and code != 0:                 # nobody pressed Stop: the tool crashed or quit with an error
+            event("error", self.tool["name"], f"crashed (exit code {code}). See its Live log.")
 
     def action(self, aid):
         label, cmd, folder, how = actions()[aid]
@@ -349,6 +404,7 @@ class Proc:
     def stop(self):
         if not self.running():
             return "not running"
+        self.stopping = True
         if WIN:
             subprocess.run(["taskkill", "/T", "/F", "/PID", str(self.p.pid)], capture_output=True, creationflags=NO_WINDOW)
         else:
@@ -371,6 +427,22 @@ PROCS = {t["id"]: Proc(t) for t in TOOLS}
 atexit.register(lambda: [p.stop() for p in PROCS.values()])
 
 
+_STATS = {}
+
+
+def cached_stats(t):
+    """A tool's numbers, counted at most every 10 s: the page asks every 2.5 s and big databases make counting slow."""
+    hit = _STATS.get(t["id"])
+    if hit and time.time() - hit[0] < 10:
+        return hit[1]
+    try:
+        stats = t["stats"]()
+    except Exception as e:  # noqa: BLE001
+        stats = [["Stats error", str(e)[:60]]]
+    _STATS[t["id"]] = (time.time(), stats)
+    return stats
+
+
 def state():
     acts = actions()
     out = []
@@ -378,10 +450,7 @@ def state():
         p = PROCS[t["id"]]
         mine, up = p.running(), port_up(t["port"])
         status = ("running" if up else "starting") if mine else ("external" if up else "stopped")
-        try:
-            stats = t["stats"]()
-        except Exception as e:  # noqa: BLE001
-            stats = [["Stats error", str(e)[:60]]]
+        stats = cached_stats(t)
         try:
             checks = t["checks"]()
         except Exception as e:  # noqa: BLE001
@@ -492,10 +561,13 @@ class H(BaseHTTPRequestHandler):
 
     do_PUT = do_PATCH = do_DELETE = lambda self: self.tool_route() or self.send('{"error":"not found"}', code=404)
 
-    def send(self, body, ctype="application/json", code=200):
+    def send(self, body, ctype="application/json", code=200, isolate=False):
         b = body.encode() if isinstance(body, str) else body
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if isolate:   # cross-origin isolation, so Solist PDF's WebAssembly converters also work inside the Hub's tab
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Embedder-Policy", "credentialless")
         self.send_header("Content-Length", str(len(b)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Frame-Options", "SAMEORIGIN")   # the Hub frames its own Transcribed page; other sites still can't
@@ -512,7 +584,7 @@ class H(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         if u.path == "/":
-            self.send(PAGE.read_text(encoding="utf-8"), "text/html; charset=utf-8")
+            self.send(PAGE.read_text(encoding="utf-8"), "text/html; charset=utf-8", isolate=True)
         elif u.path == "/api/state":
             tools = state()
             if not self.local():                          # through ngrok: the tools' pages come through the Hub's port
@@ -576,6 +648,11 @@ class H(BaseHTTPRequestHandler):
 
 # ------------------------------------------------------------------ the Hub's own window
 def browser_exe():
+    if sys.platform == "darwin":
+        apps = ("Google Chrome.app/Contents/MacOS/Google Chrome", "Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+                "Chromium.app/Contents/MacOS/Chromium", "Brave Browser.app/Contents/MacOS/Brave Browser")
+        found = [Path(base) / a for base in ("/Applications", Path.home() / "Applications") for a in apps]
+        return next((str(p) for p in found if p.exists()), None)
     if not WIN:
         names = ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "microsoft-edge",
                  "microsoft-edge-stable", "brave-browser")
