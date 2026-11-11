@@ -68,6 +68,24 @@ because it builds the whole site.
 The Hub opens at <http://localhost:9000>. Press the switch next to a tool to start it. If a tool still
 needs setup, its checklist has a button for that. Closing the Hub window stops every tool.
 
+## Check that everything works
+
+Close the Hub, then run this from the project folder (no internet needed, takes about two minutes):
+
+```bash
+python3 selftest.py        # Windows: python selftest.py
+```
+
+It starts the Hub without a window, checks that it refuses requests from other web pages, starts every tool
+that is set up and opens its page, checks that a crashed tool is reported, then stops everything. Last, it runs
+the Maps Scraper against a fake Google Maps with 124 places: the whole list must load (not just the first 20),
+place pages must be read correctly, and a job with several tabs must finish. Tools that are not set up yet are
+skipped, not failed. Each check prints PASS or FAIL.
+
+If a real Maps job ends with "⚠ Google may have changed its page", most places came back with an empty field
+(phone, address, rating or category). Google has changed its page and the selectors in
+`map_scrapper/gmaps_scraper.py` need updating.
+
 ## Running one tool on its own
 
 Every tool folder has its own `setup` and `start` scripts (`.sh` for macOS/Linux, `.bat` for Windows):

@@ -152,10 +152,75 @@ def grid(lat, lng, radius, step):
 
 
 # ---------------- worker ----------------
+MAPS = os.environ.get("GMAPS_BASE", "https://www.google.com").rstrip("/")  # the self-test points this at a fake Maps
+TABS = {"fast": 3, "normal": 2, "slow": 1}  # place pages opened at the same time, per speed setting
+PID = re.compile(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)")
+
+
+class PlaceTabs:
+    """A few browser tabs, each in its own thread, that open place pages side by side.
+
+    Opening places one at a time was most of a job's time (about 2.5 s each). Playwright's sync API keeps a
+    browser per thread, so every tab thread starts its own session and reuses it for the whole job.
+    """
+
+    def __init__(self, n, Session, kw, handle):
+        self.q, self.handle, self.threads = queue.Queue(), handle, []
+        for _ in range(n):
+            t = threading.Thread(target=self.run, args=(Session, kw), daemon=True)
+            t.start()
+            self.threads.append(t)
+
+    def run(self, Session, kw):
+        s = None
+        try:
+            while True:
+                item = self.q.get()
+                if item is None:
+                    self.q.task_done()
+                    return
+                try:
+                    if s is None:
+                        s = Session(**kw).__enter__()
+                    self.handle(s, *item)
+                except Exception as e:  # one bad place page must not stop the others
+                    print(f"place failed: {type(e).__name__}: {e}", flush=True)
+                finally:
+                    self.q.task_done()
+        finally:
+            if s is not None:
+                try:
+                    s.__exit__(None, None, None)
+                except Exception:
+                    pass
+
+    def close(self):
+        for _ in self.threads:
+            self.q.put(None)
+
+
+def check_fields(jid):
+    """Google renames its page code now and then; fields then come back empty without any error. Say so."""
+    with db() as c:
+        n = c.execute("SELECT COUNT(*) FROM places WHERE job_id=?", (jid,)).fetchone()[0]
+        if n < 10:
+            return None
+        empty = {f: c.execute(f"SELECT COUNT(*) FROM places WHERE job_id=? AND COALESCE({col},'')=''", (jid,)).fetchone()[0]
+                 for f, col in (("rating", "rating"), ("category", "category"), ("address", "address"), ("phone", "phone"))}
+    bad = [f"{f} on {round(v / n * 100)}%" for f, v in empty.items() if v / n >= 0.9]
+    if not bad:
+        return None
+    msg = (f"Google may have changed its page: {', '.join(bad)} of places came back empty. "
+           "The selectors in gmaps_scraper.py (parse_place) probably need updating.")
+    log(jid, msg, "WARN")
+    return msg
+
+
 def run_job(jid):
     with db() as c:
         job = c.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone()
     p = json.loads(job["params"])
+    tabs = None
     try:
         Session = StealthySession if p["stealth"] else DynamicSession
         kw = dict(headless=p["headless"])  # no network_idle: Maps never goes idle
@@ -177,10 +242,43 @@ def run_job(jid):
             c.execute("UPDATE jobs SET status='running', total=?, center=? WHERE id=?", (total, f"{lat},{lng}", jid))
         log(jid, f"Center {lat:.4f},{lng:.4f} (check: https://www.google.com/maps/@{lat},{lng},13z) | {len(pts)} grid cells x {len(queries)} queries = {total} searches")
 
-        Session = StealthySession if p["stealth"] else DynamicSession
-        kw = dict(headless=p["headless"])  # no network_idle: Maps never goes idle
-        if p["proxy"]:
-            kw["proxy"] = p["proxy"]
+        lock = threading.Lock()
+        cell = {"new": 0, "opened": 0, "todo": 0, "label": ""}
+
+        def visit(s, h, q):
+            """Open one place page and save it (runs in a tab thread)."""
+            if jid in STOP:
+                return
+            t0 = time.time()
+            try:
+                pg = s.fetch(h + ("&" if "?" in h else "?") + "hl=en", wait_selector=PLACE_SEL, page_action=_accept_consent)
+                req(jid, 1, t0)
+                d = parse_place(pg, h, p["reviews"])
+            except Exception as e:
+                req(jid, 0, t0)
+                log(jid, f"place page failed: {type(e).__name__}: {e}"[:300], "WARN")
+                return
+            finally:
+                with lock:
+                    cell["opened"] += 1
+                    note(jid, f"{cell['label']}: opening places, {cell['opened']} of {cell['todo']}")
+            nap(p)
+            if not d["name"]:
+                log(jid, f"place page did not load: {h[:70]}", "WARN")
+                return
+            if len(pts) > 1 and d["lat"] and hav(lat, lng, d["lat"], d["lng"]) > p["radius"] * 1.1:
+                return  # area sweep: outside the requested radius (one search keeps Google's whole list)
+            m = PID.search(h)
+            with db() as c:
+                c.execute("INSERT OR IGNORE INTO places(job_id,pid,name,category,rating,reviews_count,address,phone,"
+                          "website,lat,lng,found_by,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                          (jid, m.group(1) if m else h.split("?")[0], d["name"], d["category"], d["rating"],
+                           d["reviews_count"], d["address"], d["phone"], d["website"], d["lat"], d["lng"], q,
+                           json.dumps(d, ensure_ascii=False)))
+            with lock:
+                cell["new"] += 1
+
+        tabs = PlaceTabs(TABS.get(p.get("delay", "normal"), 2), Session, kw, visit)
         with Session(**kw) as s:
             for q in queries:
                 dry = 0
@@ -195,10 +293,10 @@ def run_job(jid):
                             c.execute("UPDATE jobs SET done=done+? WHERE id=?", (len(pts) - k, jid))
                         log(jid, f"'{q}': {dry} empty cells in a row, skipping remaining {len(pts) - k}")
                         break
-                    new = 0
+                    cell.update(new=0, opened=0, todo=0, label=f"'{q}', {where}")
                     try:
                         zoom = p["zoom"] if len(pts) > 1 else min(p["zoom"], 13)  # one search: a wider view gives the full list
-                        url = f"https://www.google.com/maps/search/{urllib.parse.quote_plus(q)}/@{la},{lo},{zoom}z?hl=en"
+                        url = f"{MAPS}/maps/search/{urllib.parse.quote_plus(q)}/@{la},{lo},{zoom}z?hl=en"
                         t0 = time.time()
                         page = s.fetch(url, page_action=action)
                         req(jid, 1, t0)
@@ -206,43 +304,31 @@ def run_job(jid):
                         hrefs = list(dict.fromkeys(page.css(f'{FEED} a[href*="/maps/place/"]::attr(href)').getall()))
                         if not hrefs and "/maps/place/" in page.url:
                             hrefs = [page.url]
-                        new = 0
-                        todo = hrefs[:p["max_per_cell"]]
                         log(jid, f"'{q}' @ {la:.3f},{lo:.3f}: Google listed {len(hrefs)} places")
-                        for i, h in enumerate(todo, 1):
-                            note(jid, f"'{q}', {where}: opening place {i} of {len(todo)}")
-                            m = re.search(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)", h)
-                            pid = m.group(1) if m else h.split("?")[0]
-                            with db() as c:
+                        todo = []
+                        with db() as c:  # places this job already has (from another query or cell): just note the query
+                            for h in hrefs[:p["max_per_cell"]]:
+                                m = PID.search(h)
+                                pid = m.group(1) if m else h.split("?")[0]
                                 row = c.execute("SELECT found_by FROM places WHERE job_id=? AND pid=?", (jid, pid)).fetchone()
-                                if row:
-                                    if q not in row["found_by"].split("|"):
-                                        c.execute("UPDATE places SET found_by=? WHERE job_id=? AND pid=?",
-                                                  (row["found_by"] + "|" + q, jid, pid))
-                                    continue
-                            t0 = time.time()
-                            pg = s.fetch(h + "&hl=en", wait_selector=PLACE_SEL, page_action=_accept_consent)
-                            req(jid, 1, t0)
-                            d = parse_place(pg, h, p["reviews"])
-                            nap(p)
-                            if not d["name"]:
-                                log(jid, f"place page did not load: {h[:70]}", "WARN")
-                                continue
-                            if len(pts) > 1 and d["lat"] and hav(lat, lng, d["lat"], d["lng"]) > p["radius"] * 1.1:
-                                continue  # area sweep: outside the requested radius (one search keeps Google's whole list)
-                            with db() as c:
-                                c.execute("INSERT OR IGNORE INTO places(job_id,pid,name,category,rating,reviews_count,address,phone,"
-                                          "website,lat,lng,found_by,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                                          (jid, pid, d["name"], d["category"], d["rating"], d["reviews_count"], d["address"],
-                                           d["phone"], d["website"], d["lat"], d["lng"], q, json.dumps(d, ensure_ascii=False)))
-                            new += 1
-                        log(jid, f"'{q}' @ {la:.3f},{lo:.3f}: {len(hrefs)} seen, {new} new")
+                                if not row:
+                                    todo.append(h)
+                                elif q not in row["found_by"].split("|"):
+                                    c.execute("UPDATE places SET found_by=? WHERE job_id=? AND pid=?", (row["found_by"] + "|" + q, jid, pid))
+                        cell["todo"] = len(todo)
+                        for h in todo:
+                            tabs.q.put((h, q))
+                        while tabs.q.unfinished_tasks:            # wait for this search's places, but stay stoppable
+                            if jid in STOP:
+                                raise KeyboardInterrupt
+                            time.sleep(0.3)
+                        log(jid, f"'{q}' @ {la:.3f},{lo:.3f}: {len(hrefs)} seen, {cell['new']} new")
                     except KeyboardInterrupt:
                         raise
                     except Exception as e:
                         req(jid, 0, time.time())
                         log(jid, f"'{q}' @ {la:.3f},{lo:.3f} failed: {type(e).__name__}: {e}", "ERROR")
-                    dry = 0 if new else dry + 1
+                    dry = 0 if cell["new"] else dry + 1
                     with db() as c:
                         c.execute("UPDATE jobs SET done=done+1 WHERE id=?", (jid,))
         status = "finished"
@@ -252,13 +338,15 @@ def run_job(jid):
         traceback.print_exc()
         log(jid, f"Job crashed: {type(e).__name__}: {e} @ " + " | ".join(l.strip() for l in traceback.format_exc().splitlines()[-4:]), "ERROR")
         status = "failed"
+    if tabs:
+        tabs.close()
     STOP.discard(jid)
+    warn = check_fields(jid) if status == "finished" else None
     with db() as c:
         if status == "finished" and not c.execute("SELECT COUNT(*) FROM reqs WHERE job_id=? AND ok=1", (jid,)).fetchone()[0]:
             status = "failed"  # every search failed: say so instead of "finished" with nothing
-        c.execute("UPDATE jobs SET status=?, note=NULL WHERE id=?", (status, jid))
+        c.execute("UPDATE jobs SET status=?, note=? WHERE id=?", (status, ("⚠ " + warn) if warn else None, jid))
     log(jid, f"Job {status}")
-
 
 PROCS = {}
 
@@ -483,7 +571,7 @@ details.more{margin-top:12px}details.more summary{cursor:pointer;color:var(--mut
 .job:first-of-type{border-top:0}.job:hover{background:var(--card2)}.job.sel{background:var(--okbg)}
 .job b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.job .q{color:var(--mute);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar{height:8px;border-radius:8px;background:var(--card2);overflow:hidden}.bar i{display:block;height:100%;background:var(--ac);border-radius:8px;transition:width .4s}
-.note{font-size:12px;color:var(--mute);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note.warn{color:#b45309;white-space:normal}.note{font-size:12px;color:var(--mute);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acts{display:flex;gap:6px;align-items:center}.st{font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--card2);color:var(--mute);text-transform:capitalize}
 .st.running,.st.queued{background:var(--okbg);color:var(--ok)}.st.finished{background:#e7f7ec;color:#15803d}.st.failed,.st.stopped{background:#ffe6ec;color:#e11d48}
 .x{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--mute)}
@@ -509,7 +597,7 @@ details.log summary{cursor:pointer;font-weight:600}.logs{max-height:260px;overfl
  <details class=more><summary>More options</summary>
   <div class=grid4>
    <label class=f>Places per search<select id=max_per_cell><option value=120 selected>All (up to ~120)</option><option value=60>60</option><option value=20>20</option></select></label>
-   <label class=f>Speed<select id=delay><option value=fast>Fast</option><option value=normal selected>Normal</option><option value=slow>Slow (safer)</option></select></label>
+   <label class=f>Speed<select id=delay><option value=fast>Fast · 3 tabs</option><option value=normal selected>Normal · 2 tabs</option><option value=slow>Slow · 1 tab (safest)</option></select></label>
    <label class=f>Country<input id=country value=India></label>
    <label class=f>Reviews per place<input id=reviews value=0 inputmode=numeric></label>
    <label class=f>Map zoom<input id=zoom value=15 inputmode=numeric></label>
@@ -544,12 +632,12 @@ async function add(){const b={};for(const i of['pincode','country','step','zoom'
  $('startb').disabled=true;try{const r=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});J=String(r.id)}finally{$('startb').disabled=false}refresh()}
 const post=u=>api(u,{method:'POST'}).then(refresh);
 function pick(id){J=String(id);refresh()}
-function jobRow(j){const p=JSON.parse(j.params),live=j.status==='running'||j.status==='queued',m=(j.note||'').match(/place (\d+) of (\d+)/);
+function jobRow(j){const p=JSON.parse(j.params),live=j.status==='running'||j.status==='queued',m=(j.note||'').match(/places, (\d+) of (\d+)/);
  const pct=j.total?Math.min(100,Math.round((j.done+(m?m[1]/m[2]:0))/j.total*100)):0;
  const where=p.label||p.pincode,size=p.mode==='quick'?'one search':p.radius+' km';
  const note=j.note||(j.status==='queued'?'Waiting for the search before it':j.total?`${j.done} of ${j.total} searches done`:'');
  return `<div class="job ${String(j.id)===J?'sel':''}" onclick="pick(${j.id})"><div><b>${esc(p.queries.join(', '))}</b><div class=q>${esc(where)} · ${esc(size)} · ${fmt(j.n)} places, ${fmt(j.ph)} with phone</div></div>
- <div><div class=bar><i style="width:${live?Math.max(3,pct):j.status==='finished'?100:pct}%"></i></div><div class=note>${esc(note)}</div></div>
+ <div><div class=bar><i style="width:${live?Math.max(3,pct):j.status==='finished'?100:pct}%"></i></div><div class="note ${note.startsWith('⚠')?'warn':''}" title="${esc(note)}">${esc(note)}</div></div>
  <div class=acts onclick="event.stopPropagation()"><span class="st ${j.status}">${esc(j.status)}</span>${live?`<button class="btn o sm" onclick="post('/api/jobs/${j.id}/stop')">Stop</button>`:`<button class="btn o sm" onclick="post('/api/jobs/${j.id}/run')" title="Already saved places are skipped">${j.status==='finished'?'Run again':'Resume'}</button>`}<a class="btn o sm" href="/api/export?job=${j.id}">CSV</a><button class=x title="Delete this search and its places" onclick="confirm('Delete this search and its places?')&&post('/api/jobs/${j.id}/delete')">✕</button></div></div>`}
 async function refresh(){jobs=await api('/api/jobs');const running=jobs.some(j=>j.status==='running');
  $('stat').className='pill '+(running?'run':'');$('stxt').textContent=running?'Searching…':jobs.some(j=>j.status==='queued')?'Queued':'Idle';
