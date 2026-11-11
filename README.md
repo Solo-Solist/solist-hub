@@ -1,26 +1,50 @@
-# Solist Project
+<div align="center">
 
-**Five everyday business tools and one dashboard to run them, all on your own computer.**
+# Solist Hub
 
-Solist Hub starts and stops each tool, shows its live log and key numbers, and opens the tool's page in the
-same window. It finds sales leads on Google Maps, collects a product catalogue from Nykaa and turns it into an
-import file, edits PDFs and sketches ideas on a whiteboard. Everything runs locally on Windows, macOS or Linux.
-Your data stays on your machine.
+### Find leads on Google Maps, scrape product catalogues, edit PDFs and sketch ideas. Free, on your own computer, from one dashboard.
+
+[![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](#setup-guide)
+[![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](#setup-guide)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](#setup-guide)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![GitHub stars](https://img.shields.io/github/stars/Solo-Solist/solist-hub?style=flat-square&color=ff5b1f)](https://github.com/Solo-Solist/solist-hub/stargazers)
+
+**No cloud. No sign-up. No API keys. No monthly bill.**
+
+[Quick start](#quick-start) · [The tools](#the-tools) · [Setup guide](#setup-guide) · [Self-test](#check-that-everything-works)
 
 ![Solist Hub dashboard](docs/screenshots/dashboard-light.png)
 
 <sub>Screenshots use sample data. Business names are invented and phone numbers are masked.</sub>
 
-## Contents
+</div>
 
-- [What you can do with it](#what-you-can-do-with-it)
-- [The tools](#the-tools)
-- [Setup guide](#setup-guide)
-- [Check that everything works](#check-that-everything-works)
-- [Share the Hub with your team](#share-the-hub-with-your-team)
-- [Your data](#your-data)
-- [Troubleshooting](#troubleshooting)
-- [Credits](#credits)
+## Why Solist Hub?
+
+Lead lists, product data and PDF tools usually mean paying for several online services and uploading your data
+to each one. Solist Hub puts five of these tools on your own computer, behind one dashboard you start with a
+double-click.
+
+- 📍 **Get the whole list.** The Maps Scraper scrolls Google's results to the end, so you get up to about 120 places per search instead of the first 20, with phone, address, rating and website.
+- 🛍️ **A catalogue in minutes.** Paste a Nykaa brand link to collect every product, shade and size. Then turn it into a ready-to-import file with category, HSN code and GST rate filled in.
+- 📄 **60+ PDF tools, offline.** Merge, split, compress, convert, OCR and sign PDFs without uploading anything.
+- ✏️ **A whiteboard built in.** Sketch flows and diagrams, then export them as PNG or SVG.
+- 🔒 **Private by design.** Everything runs on `localhost`. Your data never leaves your machine unless you choose to share the Hub.
+- 🖥️ **One window for all of it.** Start or stop any tool, watch its live log, and see if anything crashed.
+
+## Quick start
+
+```bash
+git clone https://github.com/Solo-Solist/solist-hub.git
+cd solist-hub
+./setup.sh && ./launch.sh      # Windows: double-click setup.bat, then launch.bat
+```
+
+The Hub opens at <http://localhost:9000>. You need Python 3.11+ and Node.js 20+ ([details](#setup-guide)).
+
+**If Solist Hub saves you time, please ⭐ star the repo.** It helps other people find it.
 
 ## What you can do with it
 
@@ -118,8 +142,8 @@ Hub opens in its own app window.
 ### 2. Download
 
 ```bash
-git clone https://github.com/Solo-Solist/solist-project.git
-cd solist-project
+git clone https://github.com/Solo-Solist/solist-hub.git
+cd solist-hub
 ```
 
 Or use **Code → Download ZIP** on GitHub and unzip it.
@@ -219,3 +243,12 @@ The scrapers read public pages. Use them gently and follow the terms of the site
 
 Each forked folder keeps its own licence file, which applies to that folder. The rest of this project has no
 licence: you are welcome to read it and run it, but all rights are reserved.
+
+---
+
+<div align="center">
+
+Built by [Solo-Solist](https://github.com/Solo-Solist). Found a bug or have an idea? [Open an issue](https://github.com/Solo-Solist/solist-hub/issues).
+If this project is useful to you, a ⭐ helps a lot.
+
+</div>
