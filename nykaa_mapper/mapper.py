@@ -4,7 +4,7 @@ Nykaa -> redSales import mapper
 ===============================
 Reads the products your scraper saved (nykaa_products.csv, or a SQLite table in nykaa.db)
 and writes a file in the redSales IMPORT TEMPLATE column order, with
-    category / subCategory / itemName   from the controlled taxonomy (116 item names)
+    category / subCategory / itemName   from the controlled taxonomy (taxonomy.csv)
     hsnCode / gstRate                   looked up from the item name
     size / title / images / prices ...  cleaned the way your existing export is filled
 
@@ -422,12 +422,14 @@ def classify(title, crumbs, brand, taxonomy, force_item=None, leaf=''):
 
     rows = taxonomy[best]
     pick = None
+    is_baby = lambda r: r['sub_category_id'] == 'baby-care'           # Personal Care > Baby Care
+    is_pro = lambda r: r['category_id'] == 'salon-and-professional'
     if baby:
-        pick = next((r for r in rows if r['category_id'] == 'baby-care'), None)
+        pick = next((r for r in rows if is_baby(r)), None)
     if pick is None and pro:
-        pick = next((r for r in rows if r['category_id'] == 'professional-care'), None)
+        pick = next((r for r in rows if is_pro(r)), None)
     if pick is None:
-        pick = next((r for r in rows if r['category_id'] not in ('baby-care', 'professional-care')), rows[0])
+        pick = next((r for r in rows if not is_baby(r) and not is_pro(r)), rows[0])
 
     margin = s1 - s2
     if force_item:

@@ -1,4 +1,37 @@
 category,category_id,sub_category,sub_category_id,item_name,hsn_code,gst_rate
+Personal Care,personal-care,Baby Care,baby-care,Body Lotion,33049930,18
+Personal Care,personal-care,Baby Care,baby-care,Body Wash,34013019,18
+Personal Care,personal-care,Baby Care,baby-care,Soap,34011190,5
+Personal Care,personal-care,Baby Care,baby-care,Rash Cream,33049990,18
+Personal Care,personal-care,Baby Care,baby-care,Baby Powder,33049120,5
+Personal Care,personal-care,Baby Care,baby-care,Baby Oil,33049990,18
+Personal Care,personal-care,Baby Care,baby-care,Insect Repellent,38089199,18
+Personal Care,personal-care,Baby Care,baby-care,Baby Wipes,34011990,18
+Personal Care,personal-care,Baby Care,baby-care,Colic Relief,30049099,5
+Personal Care,personal-care,Baby Care,baby-care,Shampoo,33051090,5
+Personal Care,personal-care,Baby Care,baby-care,Hair Oil,33059011,5
+Personal Care,personal-care,Baby Care,baby-care,Toothpaste,33061020,5
+Personal Care,personal-care,Baby Care,baby-care,Sunscreen,33049990,18
+Personal Care,personal-care,Baby Care,baby-care,Lip Balm,33049990,18
+Personal Care,personal-care,Baby Care,baby-care,Diaper,96190030,5
+Personal Care,personal-care,Baby Care,baby-care,Laundry Detergent,34022090,18
+Personal Care,personal-care,Baby Care,baby-care,Baby Kit,33049990,18
+Fashion Accessories,fashion-accessories,Hair Accessories,hair-accessories,Hair Extensions,67041990,18
+Fashion Accessories,fashion-accessories,Hair Accessories,hair-accessories,Hair Clip,96151900,5
+Beauty Accessories,beauty-accessories,Nail Accessories,nail-accessories,Nail File,82142090,18
+Beauty Accessories,beauty-accessories,Nail Accessories,nail-accessories,Nail Cutter,82142010,18
+Beauty Accessories,beauty-accessories,Nail Accessories,nail-accessories,Cuticle Tool,82142090,18
+Beauty Accessories,beauty-accessories,Skin Care Tools,skin-care-tools,Massager,90191020,5
+Beauty Accessories,beauty-accessories,Skin Care Tools,skin-care-tools,Loofah & Scrubber,96032900,18
+Beauty Accessories,beauty-accessories,Skin Care Tools,skin-care-tools,Foot File,82142090,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Foundation,33049990,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Face Powder,33049110,5
+Cosmetics,cosmetics,Face Makeup,face-makeup,Concealer,33049990,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Blush,33049990,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Highlighter & Bronzer,33049990,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Primer,33049990,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Setting Spray,33049990,18
+Cosmetics,cosmetics,Face Makeup,face-makeup,Sindoor,33049940,0
 Personal Care,personal-care,Skin Care,skin-care,Face Wash & Cleanser,33049990,18
 Personal Care,personal-care,Skin Care,skin-care,Moisturizer,33049930,18
 Personal Care,personal-care,Skin Care,skin-care,Serum,33049990,18
@@ -15,123 +48,101 @@ Personal Care,personal-care,Hair Care,hair-care,Hair Serum,33059090,18
 Personal Care,personal-care,Hair Care,hair-care,Hair Mask & Cream,33059030,18
 Personal Care,personal-care,Hair Care,hair-care,Hair Styling,33059050,18
 Personal Care,personal-care,Hair Care,hair-care,Scalp Care,33059090,18
-Personal Care,personal-care,Body Care,body-care,Body Lotion,33049930,18
-Personal Care,personal-care,Body Care,body-care,Body Scrub,33049990,18
-Personal Care,personal-care,Body Care,body-care,Body Wash,34013019,18
-Personal Care,personal-care,Body Care,body-care,Soap,34011190,5
-Personal Care,personal-care,Body Care,body-care,Hand Cream,33049990,18
-Personal Care,personal-care,Body Care,body-care,Massage Oil,33049990,18
-Personal Care,personal-care,Sun Care,sun-care,Sunscreen,33049990,18
-Personal Care,personal-care,Lip Care,lip-care,Lip Treatment,33049990,18
-Personal Care,personal-care,Lip Care,lip-care,Lip Balm,33049990,18
 Personal Care,personal-care,Eye Care,eye-care,Eye Cream,33049990,18
 Personal Care,personal-care,Eye Care,eye-care,Eye Mask,33049990,18
-Personal Care,personal-care,Foot Care,foot-care,Foot Cream,33049990,18
-Personal Care,personal-care,Foot Care,foot-care,Foot Scrub & Soak,33049990,18
+Salon & Professional,salon-and-professional,Tools,tools,Razor,82121090,18
+Salon & Professional,salon-and-professional,Tools,tools,Scissors & Tweezers,82130000,18
+Salon & Professional,salon-and-professional,Tools,tools,Hair Brush,96032900,18
+Salon & Professional,salon-and-professional,Tools,tools,Comb,96151100,5
+Salon & Professional,salon-and-professional,Appliances,appliances,Trimmer,85102000,18
+Salon & Professional,salon-and-professional,Appliances,appliances,Straightener,85163200,18
+Salon & Professional,salon-and-professional,Appliances,appliances,Hair Dryer,85163100,18
+Salon & Professional,salon-and-professional,Appliances,appliances,Hair Styler,85163200,18
+Salon & Professional,salon-and-professional,Appliances,appliances,Wax Heater,85167990,18
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Hair Color,33059040,18
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Shampoo,33051090,5
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Hair Serum,33059090,18
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Conditioner,33059090,18
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Hair Mask & Cream,33059030,18
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Hair Styling,33059050,18
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Hair Oil,33059011,5
+Salon & Professional,salon-and-professional,Hair Care,hair-care,Scalp Care,33059090,18
+Bath & Body,bath-and-body,Body Care,body-care,Body Lotion,33049930,18
+Bath & Body,bath-and-body,Body Care,body-care,Body Scrub,33049990,18
+Bath & Body,bath-and-body,Body Care,body-care,Body Wash,34013019,18
+Bath & Body,bath-and-body,Body Care,body-care,Soap,34011190,5
+Bath & Body,bath-and-body,Body Care,body-care,Hand Cream,33049990,18
+Bath & Body,bath-and-body,Body Care,body-care,Massage Oil,33049990,18
+Bath & Body,bath-and-body,Body Care,body-care,Talcum Powder,33049120,5
+Personal Care,personal-care,Lip Care,lip-care,Lip Treatment,33049990,18
+Personal Care,personal-care,Lip Care,lip-care,Lip Balm,33049990,18
+Personal Care,personal-care,Sun Care,sun-care,Sunscreen,33049990,18
+Cosmetics,cosmetics,Lip Makeup,lip-makeup,Lipstick,33041000,18
+Cosmetics,cosmetics,Lip Makeup,lip-makeup,Liquid Lipstick,33041000,18
+Cosmetics,cosmetics,Lip Makeup,lip-makeup,Lip Liner,33041000,18
+Cosmetics,cosmetics,Lip Makeup,lip-makeup,Lip Gloss,33041000,18
+Fragrances,fragrances,Roll On,roll-on,Roll On,33072000,18
+Fragrances,fragrances,Perfume,perfume,Perfume,33030050,18
+Fragrances,fragrances,Deodorant,deodorant,Deodorant,33072000,18
+Fragrances,fragrances,Body Mist,body-mist,Body Mist,33030060,18
+Fragrances,fragrances,Kit and Combo,kit-and-combo,Gift Set,33030050,18
+OTC Wellness,otc-wellness,Health Wellness,health-wellness,Supplement,21069099,18
+Cosmetics,cosmetics,Eye Makeup,eye-makeup,Eyeliner,33042000,18
+Cosmetics,cosmetics,Eye Makeup,eye-makeup,Kajal,33042000,18
+Cosmetics,cosmetics,Eye Makeup,eye-makeup,Eye Shadow,33042000,18
+Cosmetics,cosmetics,Eye Makeup,eye-makeup,Mascara,33042000,18
+Cosmetics,cosmetics,Eye Makeup,eye-makeup,Eyebrow,33042000,18
+Cosmetics,cosmetics,Eye Makeup,eye-makeup,False Eyelashes,67049000,18
+Cosmetics,cosmetics,Nail Makeup,nail-makeup,Nail Polish,33043000,18
+Cosmetics,cosmetics,Nail Makeup,nail-makeup,Nail Art,33043000,18
+Cosmetics,cosmetics,Kit and Combo,kit-and-combo,Makeup Kit,33049990,18
+Personal Care,personal-care,Kit and Combo,kit-and-combo,Facial Kit,33049990,18
+Personal Care,personal-care,Kit and Combo,kit-and-combo,Hair Kit,33059090,18
+Cosmetics,cosmetics,Remover,remover,Makeup Remover,33049990,18
+Bath & Body,bath-and-body,Grooming,grooming,After Shave,33071090,5
+Bath & Body,bath-and-body,Grooming,grooming,Shaving Cream,33071010,5
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Intimate Wash,34013019,18
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Hair Removal,33079010,18
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Sanitary Pad,96190010,0
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Hand Wash,34013019,18
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Hand Sanitizer,38089400,18
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Wipes,34011990,18
+Bath & Body,bath-and-body,Hygiene Care,hygiene-care,Menstrual Cup,40149090,18
+OTC Wellness,otc-wellness,Sexual Wellness,sexual-wellness,Condom,40141010,0
+OTC Wellness,otc-wellness,Sexual Wellness,sexual-wellness,Lubricant & Spray,33079090,18
+OTC Wellness,otc-wellness,Sexual Wellness,sexual-wellness,Toys & Accessories,39269099,18
+Salon & Professional,salon-and-professional,Salon Accessories,salon-accessories,Salon Accessory,39269099,18
 Personal Care,personal-care,Nail Care,nail-care,Nail Cream,33043000,18
-Personal Care,personal-care,Kit And Combo,kit-and-combo,Facial Kit,33049990,18
-Personal Care,personal-care,Kit And Combo,kit-and-combo,Hair Kit,33059090,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Foundation,33049990,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Face Powder,33049110,5
-Cosmetic,cosmetic,Face Makeup,face-makeup,Concealer,33049990,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Blush,33049990,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Highlighter & Bronzer,33049990,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Primer,33049990,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Setting Spray,33049990,18
-Cosmetic,cosmetic,Face Makeup,face-makeup,Sindoor,33049940,0
-Cosmetic,cosmetic,Eye Makeup,eye-makeup,Eyeliner,33042000,18
-Cosmetic,cosmetic,Eye Makeup,eye-makeup,Kajal,33042000,18
-Cosmetic,cosmetic,Eye Makeup,eye-makeup,Eye Shadow,33042000,18
-Cosmetic,cosmetic,Eye Makeup,eye-makeup,Mascara,33042000,18
-Cosmetic,cosmetic,Eye Makeup,eye-makeup,Eyebrow,33042000,18
-Cosmetic,cosmetic,Eye Makeup,eye-makeup,False Eyelashes,67049000,18
-Cosmetic,cosmetic,Lip Makeup,lip-makeup,Lipstick,33041000,18
-Cosmetic,cosmetic,Lip Makeup,lip-makeup,Liquid Lipstick,33041000,18
-Cosmetic,cosmetic,Lip Makeup,lip-makeup,Lip Liner,33041000,18
-Cosmetic,cosmetic,Lip Makeup,lip-makeup,Lip Gloss,33041000,18
-Cosmetic,cosmetic,Nail Makeup,nail-makeup,Nail Polish,33043000,18
-Cosmetic,cosmetic,Nail Makeup,nail-makeup,Nail Art,33043000,18
-Cosmetic,cosmetic,Remover,remover,Makeup Remover,33049990,18
-Cosmetic,cosmetic,Kit And Combo,kit-and-combo,Makeup Kit,33049990,18
-Fragrance,fragrance,Perfume,perfume,Perfume,33030050,18
-Fragrance,fragrance,Deodorant,deodorant,Deodorant,33072000,18
-Fragrance,fragrance,Body Mist,body-mist,Body Mist,33030060,18
-Fragrance,fragrance,Roll On,roll-on,Roll On,33072000,18
-Fragrance,fragrance,Talcum,talcum,Talcum Powder,33049120,5
-Fragrance,fragrance,Home Fragrance,home-fragrance,Essential Oil,33012990,18
-Fragrance,fragrance,Home Fragrance,home-fragrance,Room Freshener,33074900,18
-Fragrance,fragrance,Kit And Combo,kit-and-combo,Gift Set,33030050,18
-FMCG,fmcg,Sexual Wellness,sexual-wellness,Condom,40141010,0
-FMCG,fmcg,Sexual Wellness,sexual-wellness,Lubricant & Spray,33079090,18
-FMCG,fmcg,Sexual Wellness,sexual-wellness,Toys & Accessories,39269099,18
-FMCG,fmcg,Hygiene Care,hygiene-care,Intimate Wash,34013019,18
-FMCG,fmcg,Hygiene Care,hygiene-care,Hair Removal,33079010,18
-FMCG,fmcg,Hygiene Care,hygiene-care,Sanitary Pad,96190010,0
-FMCG,fmcg,Hygiene Care,hygiene-care,Hand Wash,34013019,18
-FMCG,fmcg,Hygiene Care,hygiene-care,Hand Sanitizer,38089400,18
-FMCG,fmcg,Hygiene Care,hygiene-care,Wipes,34011990,18
-FMCG,fmcg,Hygiene Care,hygiene-care,Menstrual Cup,40149090,18
-FMCG,fmcg,Health Wellness,health-wellness,Supplement,21069099,18
-FMCG,fmcg,Home Care,home-care,Insect Repellent,38089199,18
-FMCG,fmcg,Home Care,home-care,Incense,33074100,5
-FMCG,fmcg,Home Care,home-care,Household Cleaner,34022090,18
-FMCG,fmcg,Grooming,grooming,After Shave,33071090,5
-FMCG,fmcg,Grooming,grooming,Shaving Cream,33071010,5
-FMCG,fmcg,Oral Care,oral-care,Toothpaste,33061020,5
-FMCG,fmcg,OTC,otc,Ointment & Balm,30049099,5
-Professional Care,professional-care,Hair Care,hair-care,Hair Color,33059040,18
-Professional Care,professional-care,Hair Care,hair-care,Shampoo,33051090,5
-Professional Care,professional-care,Hair Care,hair-care,Hair Serum,33059090,18
-Professional Care,professional-care,Hair Care,hair-care,Conditioner,33059090,18
-Professional Care,professional-care,Hair Care,hair-care,Hair Mask & Cream,33059030,18
-Professional Care,professional-care,Hair Care,hair-care,Hair Styling,33059050,18
-Professional Care,professional-care,Hair Care,hair-care,Hair Oil,33059011,5
-Professional Care,professional-care,Hair Care,hair-care,Scalp Care,33059090,18
-Professional Care,professional-care,Skin Care,skin-care,Moisturizer,33049930,18
-Professional Care,professional-care,Skin Care,skin-care,Serum,33049990,18
-Professional Care,professional-care,Waxing,waxing,Wax,33079010,18
-Professional Care,professional-care,Waxing,waxing,Bleach,33049990,18
-Professional Care,professional-care,Kit And Combo,kit-and-combo,Facial Kit,33049990,18
-Professional Care,professional-care,Kit And Combo,kit-and-combo,Manicure Pedicure Kit,33043000,18
-Baby Care,baby-care,Skin Care,skin-care,Body Lotion,33049930,18
-Baby Care,baby-care,Skin Care,skin-care,Body Wash,34013019,18
-Baby Care,baby-care,Skin Care,skin-care,Soap,34011190,5
-Baby Care,baby-care,Skin Care,skin-care,Rash Cream,33049990,18
-Baby Care,baby-care,Skin Care,skin-care,Baby Powder,33049120,5
-Baby Care,baby-care,Skin Care,skin-care,Baby Oil,33049990,18
-Baby Care,baby-care,Body Care,body-care,Insect Repellent,38089199,18
-Baby Care,baby-care,Body Care,body-care,Baby Wipes,34011990,18
-Baby Care,baby-care,Body Care,body-care,Colic Relief,30049099,5
-Baby Care,baby-care,Hair Care,hair-care,Shampoo,33051090,5
-Baby Care,baby-care,Hair Care,hair-care,Hair Oil,33059011,5
-Baby Care,baby-care,Oral Care,oral-care,Toothpaste,33061020,5
-Baby Care,baby-care,Sun Care,sun-care,Sunscreen,33049990,18
-Baby Care,baby-care,Lip Care,lip-care,Lip Balm,33049990,18
-Baby Care,baby-care,Diaper,diaper,Diaper,96190030,5
-Baby Care,baby-care,Laundry Hygiene,laundary-hygiene,Laundry Detergent,34022090,18
-Baby Care,baby-care,Kit And Combo,kit-and-combo,Baby Kit,33049990,18
-Beauty Accessories,beauty-accessories,Hair Accessories,hair-accessories,Hair Extensions,67041990,18
-Beauty Accessories,beauty-accessories,Hair Accessories,hair-accessories,Hair Clip,96151900,5
-Beauty Accessories,beauty-accessories,Nail Accessories,nail-accessories,Nail File,82142090,18
-Beauty Accessories,beauty-accessories,Nail Accessories,nail-accessories,Nail Cutter,82142010,18
-Beauty Accessories,beauty-accessories,Nail Accessories,nail-accessories,Cuticle Tool,82142090,18
+Lifestyle,lifestyle,Home Care,home-care,Insect Repellent,38089199,18
+Lifestyle,lifestyle,Home Care,home-care,Incense,33074100,5
+Lifestyle,lifestyle,Home Care,home-care,Household Cleaner,34022090,18
+OTC Wellness,otc-wellness,OTC,otc,Ointment & Balm,30049099,5
 Beauty Accessories,beauty-accessories,Makeup,makeup,Makeup Brush,96033020,18
 Beauty Accessories,beauty-accessories,Makeup,makeup,Makeup Sponge,96162000,18
 Beauty Accessories,beauty-accessories,Makeup,makeup,Eyelash Curler,82142090,18
 Beauty Accessories,beauty-accessories,Makeup,makeup,Makeup Bag,42029210,18
-Beauty Accessories,beauty-accessories,Skin Care Tools,skin-care-tools,Massager,90191020,5
-Beauty Accessories,beauty-accessories,Skin Care Tools,skin-care-tools,Loofah & Scrubber,96032900,18
-Beauty Accessories,beauty-accessories,Skin Care Tools,skin-care-tools,Foot File,82142090,18
+Personal Care,personal-care,Foot Care,foot-care,Foot Cream,33049990,18
+Personal Care,personal-care,Foot Care,foot-care,Foot Scrub & Soak,33049990,18
 Beauty Accessories,beauty-accessories,Disposable,disposable,Towel & Bed Sheet,63026090,5
 Beauty Accessories,beauty-accessories,Disposable,disposable,Disposable Apparel,62101090,5
 Beauty Accessories,beauty-accessories,Disposable,disposable,Ear Bud,56012190,5
-Tools and Equipment,tools-and-equipment,Tools,tools,Razor,82121090,18
-Tools and Equipment,tools-and-equipment,Tools,tools,Scissors & Tweezers,82130000,18
-Tools and Equipment,tools-and-equipment,Tools,tools,Hair Brush,96032900,18
-Tools and Equipment,tools-and-equipment,Tools,tools,Comb,96151100,5
-Tools and Equipment,tools-and-equipment,Appliances,appliances,Trimmer,85102000,18
-Tools and Equipment,tools-and-equipment,Appliances,appliances,Straightener,85163200,18
-Tools and Equipment,tools-and-equipment,Appliances,appliances,Hair Dryer,85163100,18
-Tools and Equipment,tools-and-equipment,Appliances,appliances,Hair Styler,85163200,18
-Tools and Equipment,tools-and-equipment,Appliances,appliances,Wax Heater,85167990,18
-Tools and Equipment,tools-and-equipment,Salon Accessories,salon-accessories,Salon Accessory,39269099,18
+Salon & Professional,salon-and-professional,Waxing,waxing,Wax,33079010,18
+Salon & Professional,salon-and-professional,Waxing,waxing,Bleach,33049990,18
+Salon & Professional,salon-and-professional,Kit and Combo,kit-and-combo,Facial Kit,33049990,18
+Salon & Professional,salon-and-professional,Kit and Combo,kit-and-combo,Manicure Pedicure Kit,33043000,18
+Fragrances,fragrances,Home Fragrance,home-fragrance,Essential Oil,33012990,18
+Fragrances,fragrances,Home Fragrance,home-fragrance,Room Freshener,33074900,18
+Cosmetics,cosmetics,Disposable,disposable,Towel & Bed Sheet,63026090,5
+Cosmetics,cosmetics,Disposable,disposable,Disposable Apparel,62101090,5
+Cosmetics,cosmetics,Disposable,disposable,Ear Bud,56012190,5
+Beauty Accessories,beauty-accessories,Oral Care,oral-care,Toothbrush,96032100,5
+Beauty Accessories,beauty-accessories,Oral Care,oral-care,Dental Floss,33062000,5
+OTC Wellness,otc-wellness,Oral Care,oral-care,Toothpaste,33061020,5
+Personal Care,personal-care,Grooming,grooming,After Shave,33071090,5
+Personal Care,personal-care,Grooming,grooming,Shaving Cream,33071010,5
+Salon & Professional,salon-and-professional,Disposable,disposable,Towel & Bed Sheet,63026090,5
+Salon & Professional,salon-and-professional,Disposable,disposable,Disposable Apparel,62101090,5
+Salon & Professional,salon-and-professional,Disposable,disposable,Ear Bud,56012190,5
+Personal Care,personal-care,Disposable,disposable,Towel & Bed Sheet,63026090,5
+Personal Care,personal-care,Disposable,disposable,Disposable Apparel,62101090,5
+Personal Care,personal-care,Disposable,disposable,Ear Bud,56012190,5

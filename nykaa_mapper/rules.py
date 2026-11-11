@@ -110,6 +110,8 @@ RULES = {
 'Incense': R((r'\bagarbatti\b|\bincense\b|\bdhoop\b|\bdhoopbatti\b|\bsambrani\b|\bincense sticks?\b|\bagarbatti\b|\bdhoop sticks?\b|\bcones? incense\b|\baroma sticks?\b|\bsticks? (incense|agarbatti)\b', 10)),
 'Shaving Cream': R((r'\bshaving (cream|foam|gel|stick|soap|lather|brush)\b|\bpre ?shave\b|\bshave (cream|foam|gel|oil)\b|\bshaving\b|\bshaving creams?\b|\bshave prep\b', 8), (r'\bafter ?shave\b|\bpost shave\b|\bbalm\b|\brazor\b|\bblade\b', -5)),
 'After Shave': R((r'\bafter ?shave\b|\bpost shave\b|\bshaving balm\b|\bface shave balm\b|\bshave balm\b|\bafter shave (lotion|balm|gel|spray|splash)\b|\baftershave (lotion|balm|gel)\b|\bpost shave (balm|lotion|gel)\b', 9)),
+'Toothbrush': R((r'\btooth ?brush(es)?\b|\binterdental brush(es)?\b', 10)),
+'Dental Floss': R((r'\bfloss(er|ers|ing)?\b|\bfloss picks?\b', 11)),
 'Toothpaste': R((r'\btoothpaste\b|\btooth paste\b|\btooth powder\b|\bdentifrice\b|\bmouth ?wash\b|\bdental\b|\bwhitening toothpaste\b|\boral rinse\b|\bmouth rinse\b|\bgum care\b|\boil pulling\b|\bmouth spray\b|\boral care\b|\bsensitive (toothpaste|teeth)\b|\bbreath\b', 9)),
 'Ointment & Balm': R((r'\bointment\b|\bpain (relief|balm|reliever|rub|spray)\b|\bmuscle (rub|relief|pain)\b|\bvaporub\b|\biodex\b|\bmoov\b|\brelaxyl\b|\bcold balm\b|\banalgesic\b|\bpain (gel|cream)\b|\bantiseptic (cream|ointment)\b|\bwound\b|\bburn (cream|ointment)\b|\bbalm\b|\bmuscle\b|\bjoint pain\b|\bback pain\b|\bcold rub\b|\bchest rub\b|\bantiseptic\b|\bantibiotic\b|\bpetroleum jelly\b', 7), (r'\blip\b|\bcleansing balm\b|\bshaving balm\b|\bafter ?shave\b|\bhair\b|\bface balm\b|\bbody balm\b|\bbeard balm\b|\btinted\b|\bbalm stick\b|\bsunscreen\b|\bspf\b|\bfoundation\b|\bstick\b', -6)),
 'Facial Kit': R((r'\bfacial kit\b|\bface kit\b|\bfacial combo\b|\bcleanup kit\b|\b\d ?step facial\b|\bfacial set\b|\bsalon facial\b|\bfruit facial\b|\bgold facial\b|\bde ?tan kit\b', 10)),
@@ -171,7 +173,7 @@ KIT_BY_ITEM = {
  'Manicure Pedicure Kit': {'Nail Cream'},
 }
 
-# ---- Context: which brands are salon (Professional Care) or baby (Baby Care) -----------
+# ---- Context: which brands are salon (Salon & Professional) or baby (Personal Care > Baby Care) -----------
 # Learned from your redSales export (brands that sat >=70% in that category) + well-known extras.
 PRO_BRANDS = {b.lower() for b in [
  'Biotop Professional','De Fabulous','Floractive','GK Hair','Matrix','Olaplex','Oxylife','Schwarzkopf Professional','Streax Professional',

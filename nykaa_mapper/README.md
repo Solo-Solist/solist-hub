@@ -39,7 +39,7 @@ Turns the products your scraper saved into a file in the **redSales import templ
 |---|---|
 | `mapper.py` | the program |
 | `rules.py` | the keyword rules that pick the **item name** (edit this to teach it new words) |
-| `taxonomy.csv` | the 136-row tree: category > sub category > item name, with 8-digit HSN and GST % |
+| `taxonomy.csv` | the 147-row tree (same structure as the redSales categories collection): category > sub category > item name, with 8-digit HSN and GST % |
 
 ## Run it from a terminal (in this folder, with its environment active)
 ```
@@ -58,7 +58,7 @@ If a column is not detected, name it yourself: `--col title=product_name --col m
 * `summary.txt` - counts.
 
 ## How each column is filled
-* **category / subCategory / itemName / hsnCode / gstRate** - the item name is chosen by `rules.py` from the title + category breadcrumb. The rest comes from `taxonomy.csv`. Baby brands/words choose the Baby Care branch; salon brands (Kerastase, Matrix, Schwarzkopf Professional, Streax Pro ...) choose Professional Care.
+* **category / subCategory / itemName / hsnCode / gstRate** - the item name is chosen by `rules.py` from the title + category breadcrumb. The rest comes from `taxonomy.csv`. Baby brands/words choose Personal Care > Baby Care; salon brands (Kerastase, Matrix, Schwarzkopf Professional, Streax Pro ...) choose Salon & Professional.
 * **size** - written like your export: `100ml`, `50g`, `1 pc`, combos `60ml + 100g`, `NA` when unknown.
 * **productTitle** - `Title - Shade(size)`, the style most of your export uses. A duplicate size/shade is removed.
 * **images** - found by looking at the CELLS, not the column name: any column holding image URLs (JSON list, Python list, comma / pipe / newline separated, numbered columns) is split into image1...image14, de-duplicated, in order. `Image` = image1.
@@ -70,7 +70,7 @@ If a column is not detected, name it yourself: `--col title=product_name --col m
 * If there is still no EAN the cell is blank (or running numbers with `--barcode-start 1001`).
 * **availableQty** - 0 when the scraper says out of stock; otherwise blank (or `--default-qty 1`).
 * **productCode, series, expiryDate** - left blank (nothing in the scrape gives them).
-* category / subCategory are written as **slugs** (`personal-care`, `skin-care`, `professional-care`). Use `--names` for `Personal Care` style.
+* category / subCategory are written as **slugs** (`personal-care`, `skin-care`, `salon-and-professional`). Use `--names` for `Personal Care` style.
 
 ## Accuracy
 Tested on your own 3,783 redSales products using **titles only** (no breadcrumb): 86% of item names correct, and the rows the program marks High/Medium confidence (83% of rows) are 91% correct. With real Nykaa breadcrumbs it should do better. Part of the remaining gap is inconsistent labels in the old export.
