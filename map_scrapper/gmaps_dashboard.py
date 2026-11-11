@@ -46,6 +46,15 @@ def init():
         CREATE TABLE IF NOT EXISTS reqs(job_id INT, ts INT, ok INT, ms INT);
         CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY, job_id INT, ts TEXT, level TEXT, msg TEXT);
         """)
+        try:  # what the job is doing right now ("Loading list: 60 places"), shown under its progress bar
+            c.execute("ALTER TABLE jobs ADD COLUMN note TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+
+def note(job, text):
+    with db() as c:
+        c.execute("UPDATE jobs SET note=? WHERE id=?", (text, job))
 
 
 def log(job, msg, level="INFO"):
@@ -144,8 +153,11 @@ def run_job(jid):
         except Exception as ge:
             log(jid, f"Geocoders failed ({ge}); asking Google Maps instead", "WARN")
             lat, lng = geocode_browser(Session, kw, p)
-        step = max(p["step"], p["radius"] / 8)  # cap grid density on big radii
-        pts = sorted(grid(lat, lng, p["radius"], step), key=lambda t: hav(lat, lng, t[0], t[1]))  # center-out
+        if p.get("mode") == "quick" or p["radius"] <= p["step"]:
+            pts = [(lat, lng)]  # one search: Google's whole list for this spot (up to ~120 places)
+        else:
+            step = max(p["step"], p["radius"] / 8)  # cap grid density on big radii
+            pts = sorted(grid(lat, lng, p["radius"], step), key=lambda t: hav(lat, lng, t[0], t[1]))  # center-out
         queries = p["queries"]
         total = len(pts) * len(queries)
         with db() as c:
@@ -156,11 +168,13 @@ def run_job(jid):
         kw = dict(headless=p["headless"])  # no network_idle: Maps never goes idle
         if p["proxy"]:
             kw["proxy"] = p["proxy"]
-        action = make_scroll_action(p["max_per_cell"])
         with Session(**kw) as s:
             for q in queries:
                 dry = 0
                 for k, (la, lo) in enumerate(pts):
+                    where = f"search {k + 1} of {len(pts)}" if len(pts) > 1 else "search"
+                    action = make_scroll_action(p["max_per_cell"], lambda n, end, q=q, w=where:
+                                                note(jid, f"'{q}', {w}: {'list loaded' if end else 'scrolling the list'}, {n} places"))
                     if jid in STOP:
                         raise KeyboardInterrupt
                     if p.get("patience", 15) and dry >= p.get("patience", 15):
@@ -170,7 +184,8 @@ def run_job(jid):
                         break
                     new = 0
                     try:
-                        url = f"https://www.google.com/maps/search/{urllib.parse.quote_plus(q)}/@{la},{lo},{p['zoom']}z?hl=en"
+                        zoom = p["zoom"] if len(pts) > 1 else min(p["zoom"], 13)  # one search: a wider view gives the full list
+                        url = f"https://www.google.com/maps/search/{urllib.parse.quote_plus(q)}/@{la},{lo},{zoom}z?hl=en"
                         t0 = time.time()
                         page = s.fetch(url, page_action=action)
                         req(jid, 1, t0)
@@ -179,7 +194,10 @@ def run_job(jid):
                         if not hrefs and "/maps/place/" in page.url:
                             hrefs = [page.url]
                         new = 0
-                        for h in hrefs[:p["max_per_cell"]]:
+                        todo = hrefs[:p["max_per_cell"]]
+                        log(jid, f"'{q}' @ {la:.3f},{lo:.3f}: Google listed {len(hrefs)} places")
+                        for i, h in enumerate(todo, 1):
+                            note(jid, f"'{q}', {where}: opening place {i} of {len(todo)}")
                             m = re.search(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)", h)
                             pid = m.group(1) if m else h.split("?")[0]
                             with db() as c:
@@ -197,8 +215,8 @@ def run_job(jid):
                             if not d["name"]:
                                 log(jid, f"place page did not load: {h[:70]}", "WARN")
                                 continue
-                            if d["lat"] and hav(lat, lng, d["lat"], d["lng"]) > p["radius"] * 1.1:
-                                continue  # outside requested radius
+                            if len(pts) > 1 and d["lat"] and hav(lat, lng, d["lat"], d["lng"]) > p["radius"] * 1.1:
+                                continue  # area sweep: outside the requested radius (one search keeps Google's whole list)
                             with db() as c:
                                 c.execute("INSERT OR IGNORE INTO places(job_id,pid,name,category,rating,reviews_count,address,phone,"
                                           "website,lat,lng,found_by,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -223,7 +241,9 @@ def run_job(jid):
         status = "failed"
     STOP.discard(jid)
     with db() as c:
-        c.execute("UPDATE jobs SET status=? WHERE id=?", (status, jid))
+        if status == "finished" and not c.execute("SELECT COUNT(*) FROM reqs WHERE job_id=? AND ok=1", (jid,)).fetchone()[0]:
+            status = "failed"  # every search failed: say so instead of "finished" with nothing
+        c.execute("UPDATE jobs SET status=?, note=NULL WHERE id=?", (status, jid))
     log(jid, f"Job {status}")
 
 
@@ -261,7 +281,8 @@ def new_job():
     f = request.json
     qs = [x.strip() for x in f.get("query", "").split(",") if x.strip()]
     p = dict(pincode=f["pincode"].strip(), country=f.get("country") or "India", radius=float(f.get("radius") or 3),
-             step=float(f.get("step") or 1.5), zoom=int(f.get("zoom") or 15), max_per_cell=int(f.get("max_per_cell") or 40),
+             step=float(f.get("step") or 1.5), zoom=int(f.get("zoom") or 15), max_per_cell=int(f.get("max_per_cell") or 120),
+             mode="quick" if f.get("mode") == "quick" else "sweep",
              reviews=int(f.get("reviews") or 0), stealth=bool(f.get("stealth")), headless=not f.get("show"),
              proxy=(f.get("proxy") or "").strip() or None, delay=f.get("delay") or "normal", patience=int(f.get("patience") or 15), queries=qs)
     return jsonify(id=create_job(p))
@@ -291,7 +312,7 @@ def preset():
     ids = []
     for name, la, lo, r in AREAS:
         ids.append(create_job(dict(pincode=f"{la},{lo}", label=name, country="India", radius=r, step=1.5, zoom=15,
-                                   max_per_cell=40, reviews=0, stealth=False, headless=not f.get("show"),
+                                   max_per_cell=120, reviews=0, stealth=False, headless=not f.get("show"),
                                    proxy=(f.get("proxy") or "").strip() or None, delay=f.get("delay") or "normal",
                                    patience=10, queries=qs)))
     return jsonify(ids=ids)
@@ -421,109 +442,113 @@ def export():
 # ---------------- UI ----------------
 HTML = r"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Maps Scraper</title>
 <style>
-:root{--bg:#e4e3df;--panel:#f2f1ee;--card:#f8f7f5;--tx:#141414;--mut:#8b8a86;--ac:#d9694a;--line:#e5e3df}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px Inter,system-ui,sans-serif;padding:16px}
-.panel{background:var(--panel);border-radius:28px;padding:28px;max-width:1500px;margin:auto}
-header,.hero,.row{display:flex;align-items:center;gap:12px}header{justify-content:space-between}
-.logo{width:62px;height:62px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-weight:700}
-.sub{color:var(--mut)}b.t{font-size:17px;display:block}
-select,input{font:inherit;border:1px solid var(--line);background:#fff;border-radius:999px;padding:13px 18px;color:var(--tx);outline:0}
-.pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:13px 20px;display:flex;align-items:center;gap:8px}
-.dot{width:9px;height:9px;border-radius:50%;background:#bbb}.run .dot{background:var(--ac)}
-.hero{justify-content:space-between;margin:14px 0 22px}
-.date{width:112px;height:112px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:42px;position:relative}
-.date small{position:absolute;right:-70px;font-size:14px;color:var(--mut);line-height:1.2}
-.btn{background:var(--ac);color:#fff;border:0;border-radius:999px;padding:13px 22px;font:inherit;font-weight:500;cursor:pointer}
-.btn.o{background:#fff;color:var(--tx);border:1px solid var(--line)}.btn.sm{padding:7px 14px;font-size:13px}.btn.k{background:#111;width:44px;padding:7px}
-.hero h1{margin:0;font-size:38px;text-align:right;font-weight:600}.hero h1 span{color:#c7c5c0;display:block}
-.play{width:112px;height:112px;border-radius:50%;border:0;background:#fff;font-size:38px;cursor:pointer}
-.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:14px}
-.card{background:var(--card);border-radius:26px;padding:26px;border:1px solid #fff}
-.kpi .ic{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;margin-bottom:22px;color:#555}
-.kpi b{font-size:34px;font-weight:600;display:block}.kpi .l{font-size:16px;margin-top:2px}.kpi .s{color:var(--mut);font-size:13px;margin-top:4px}.or{color:var(--ac)}
-.ringc{width:296px;display:grid;place-items:center;padding:14px}
-h3{margin:0 0 16px;font-size:18px;font-weight:600}h3 em{font-style:normal;font-size:13px;color:var(--mut);font-weight:400}
-.form{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.form input{padding:12px 18px}
-details{margin-bottom:14px;color:var(--mut)}details .form{margin-top:10px;color:var(--tx);align-items:center}
-table{width:100%;border-collapse:collapse}th{color:var(--mut);font-weight:400;text-align:left;padding:10px 8px;font-size:13px}
-td{padding:16px 8px;border-top:1px solid var(--line);vertical-align:middle}tr.sel td{background:#fff}
-.prog{position:relative;padding-top:14px;min-width:160px}.prog small{position:absolute;right:0;top:0;color:var(--mut);font-size:12px}
-.tr,.bt{height:7px;border-radius:9px;background:#e7e5e1;overflow:hidden}.tr i,.bt i{display:block;height:100%;background:var(--ac);border-radius:9px}
-.st{padding:5px 12px;border-radius:999px;font-size:12px;background:#e7e5e1}.st.finished{background:#dcefe0;color:#2f7a45}.st.running{background:#fbe3da;color:var(--ac)}.st.failed,.st.stopped{background:#f3dcdc;color:#b23b3b}
-.br{margin-bottom:13px}.bl{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px}.bl span:last-child{color:var(--mut)}
-.pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.pills div{border:1px solid var(--line);border-radius:999px;padding:10px 16px;color:var(--mut)}.pills b{color:var(--tx);margin-left:6px}
-.rpm{display:flex;align-items:flex-end;gap:3px;height:150px}.rpm div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-width:3px}
-.rpm i{background:var(--ac);border-radius:3px 3px 0 0}.rpm u{background:#111;height:4px;margin-bottom:2px;border-radius:2px}
-.scroll{max-height:300px;overflow:auto;font:12.5px ui-monospace,monospace;line-height:1.7}.ERROR{color:#b23b3b}
-.dt td,.dt th{font-size:13px;padding:9px 8px}
+:root{--page:#fbfbfb;--card:#fff;--card2:#f3f3f4;--ink:#18181b;--mute:#71717a;--line:#e6e6e9;--ac:#ff5b1f;--okbg:#fff1ea;--ok:#e2470f}
+*{box-sizing:border-box}html,body{margin:0;background:var(--page);color:var(--ink);font:14px/20px Urbanist,Inter,"Segoe UI",system-ui,sans-serif}
+body{padding:16px}.wrap{max-width:1280px;margin:0 auto;display:grid;gap:14px}
+button,input,select{font:inherit;color:inherit}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:0}
+.head{display:flex;align-items:center;gap:12px}.head .logo{width:42px;height:42px;border-radius:12px;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.head h1{font-size:22px!important;line-height:28px!important;margin:0;font-weight:600!important}.head p{margin:0;color:var(--mute);font-size:13px}.sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--card);font-weight:500;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#bbb}.run .dot{background:var(--ac);animation:bl 1s infinite}@keyframes bl{50%{opacity:.3}}
+h2{font-size:16px;margin:0 0 12px;font-weight:600}
+label.f{display:grid;gap:6px;font-weight:500;font-size:13px;min-width:0}label.f small{color:var(--mute);font-weight:400}
+input,select{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 14px;background:var(--card);outline:0}input:focus,select:focus{border-color:var(--ac)}
+.row{display:grid;gap:12px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}.chip{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-weight:500;text-align:left}
+.chip small{color:var(--mute);font-weight:400;margin-left:4px}.chip.on{border-color:var(--ac);background:var(--okbg);color:var(--ok)}.chip.on small{color:var(--ok)}
+.startrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+html.embedded .head>.logo,html.embedded .head>div{display:none}
+.btn{height:44px;padding:0 20px;border-radius:10px;border:0;background:var(--ac);color:#fff;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap}
+.btn.o{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn.sm{height:32px;padding:0 12px;font-size:13px;font-weight:500}.btn:disabled{opacity:.5;cursor:default}
+.hint{color:var(--mute);font-size:13px}
+details.more{margin-top:12px}details.more summary{cursor:pointer;color:var(--mute);font-size:13px}.grid4{display:grid;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:10px}
+.checks{display:flex;gap:16px;align-items:center;margin-top:10px;flex-wrap:wrap}.checks label{display:flex;gap:6px;align-items:center}.checks input{width:auto;height:auto}
+.card.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:0!important;overflow:hidden}
+.kpi{padding:14px 18px;border-left:1px solid var(--line)}.kpi:first-child{border-left:0}.kpi span{color:var(--mute);font-size:13px}.kpi b{display:block;font-size:26px!important;line-height:34px;font-weight:600!important}
+.job{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.4fr) auto;gap:14px;align-items:center;padding:12px 10px;border-top:1px solid var(--line);border-radius:10px;cursor:pointer}
+.job:first-of-type{border-top:0}.job:hover{background:var(--card2)}.job.sel{background:var(--okbg)}
+.job b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.job .q{color:var(--mute);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:8px;border-radius:8px;background:var(--card2);overflow:hidden}.bar i{display:block;height:100%;background:var(--ac);border-radius:8px;transition:width .4s}
+.note{font-size:12px;color:var(--mute);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acts{display:flex;gap:6px;align-items:center}.st{font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--card2);color:var(--mute);text-transform:capitalize}
+.st.running,.st.queued{background:var(--okbg);color:var(--ok)}.st.finished{background:#e7f7ec;color:#15803d}.st.failed,.st.stopped{background:#ffe6ec;color:#e11d48}
+.x{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--mute)}
+.rhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.rhead h2{margin:0}.rhead input{width:220px;height:36px}
+.tbl{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{position:sticky;top:0;background:var(--card2);text-align:left;font-weight:600;padding:9px 10px;white-space:nowrap}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}td.n{white-space:nowrap}td a{color:var(--ac)}
+.empty{color:var(--mute);padding:18px 4px}
+details.log summary{cursor:pointer;font-weight:600}.logs{max-height:260px;overflow:auto;font:12px/18px ui-monospace,Consolas,monospace;margin-top:10px}.ERROR{color:#e11d48}.WARN{color:#b45309}
+@media(max-width:860px){.row,.grid4{grid-template-columns:minmax(0,1fr)}.head p{display:none}.card.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(3){border-left:0}.job{grid-template-columns:minmax(0,1fr)}.rhead input{width:100%}}
 </style>
-<div class=panel>
-<header>
- <div class=row><div class=logo>M°</div><div><b class=t>Maps Scraper</b><span class=sub>Analytics Dashboard</span></div></div>
- <div class=row><select id=jobsel onchange="J=this.value;refresh()"><option value=all>All jobs</option></select>
-  <select id=delay title="Applies to new jobs"><option value=fast>Fast 0.3–0.8s</option><option value=normal selected>Normal 1–2s</option><option value=slow>Slow 2.5–4.5s</option></select>
-  <div class=pill id=stat><span class=dot></span><span id=stxt>Idle</span></div></div>
-</header>
-<div class=hero>
- <div class=row><div class=date><span id=day></span><small id=dm></small></div><button class=btn style="margin-left:72px" onclick="document.getElementById('queue').scrollIntoView({behavior:'smooth'})">Show my queue →</button></div>
- <div class=row><h1 id=h1>Maps Scraper<span>Add a job and press start.</span></h1><button class=play id=play onclick=play()>▶</button></div>
+<div class=wrap>
+<div class=head><div class=logo>M</div><div><h1>Maps Scraper</h1><p>Find businesses on Google Maps and download them as a spreadsheet.</p></div><span class=sp></span><span class=pill id=stat><span class=dot></span><span id=stxt>Idle</span></span></div>
+
+<section class=card><h2>New search</h2>
+ <div class=row>
+  <label class=f>What are you looking for?<input id=queries placeholder="e.g. sweet shop, bakery" autocomplete=off><small>Several things? Separate them with commas.</small></label>
+  <label class=f>Where?<input id=pincode placeholder="Pincode, area, or lat,lng" autocomplete=off><small>e.g. 400050 or 19.07,72.87</small></label>
+ </div>
+ <div class=f style="margin-top:14px;font-weight:500;font-size:13px">How big an area?</div>
+ <div class=chips id=areas style="margin-top:6px"></div>
+ <div class=startrow><button class=btn id=startb onclick=add()>▶ Start search</button><span class=hint id=est></span></div>
+ <details class=more><summary>More options</summary>
+  <div class=grid4>
+   <label class=f>Places per search<select id=max_per_cell><option value=120 selected>All (up to ~120)</option><option value=60>60</option><option value=20>20</option></select></label>
+   <label class=f>Speed<select id=delay><option value=fast>Fast</option><option value=normal selected>Normal</option><option value=slow>Slow (safer)</option></select></label>
+   <label class=f>Country<input id=country value=India></label>
+   <label class=f>Reviews per place<input id=reviews value=0 inputmode=numeric></label>
+   <label class=f>Map zoom<input id=zoom value=15 inputmode=numeric></label>
+   <label class=f>Grid step (km)<input id=step value=1.5 inputmode=decimal></label>
+   <label class=f>Give up after N empty searches<input id=patience value=15 inputmode=numeric></label>
+   <label class=f>Proxy<input id=proxy placeholder="http://user:pass@host:port"></label>
+  </div>
+  <div class=checks><label><input type=checkbox id=stealth> Stealth browser</label><label><input type=checkbox id=show> Show the browser while it works</label></div>
+ </details>
+</section>
+
+<section class="card kpis" id=kpis></section>
+
+<section class=card><div class=rhead><h2>Your searches</h2><span class=sp></span><a class="btn o sm" href="/api/export?job=all">⤓ Download everything</a></div><div id=jobs></div></section>
+
+<section class=card><div class=rhead><h2 id=rtitle>Results</h2><span class=hint id=rcount></span><span class=sp></span><input id=search placeholder="Filter by name, category, address" oninput=load()><a class="btn sm" id=exp href="/api/export?job=all">⤓ Download CSV</a></div><div class=tbl><table id=data></table></div></section>
+
+<details class="card log"><summary>Activity log</summary><div class=logs id=logs></div></details>
 </div>
-<div class=grid id=kpis></div>
-<div class=card style="width:296px;padding:14px;margin-bottom:14px"><svg viewBox="0 0 200 200" id=ring></svg></div>
-<div class=card id=queue style="margin-bottom:14px"><h3>Job queue</h3>
- <div class=form><input id=pincode placeholder="Pincode" style=width:140px><input id=radius placeholder="Radius km" value=3 style=width:120px>
-  <input id=queries placeholder="What to find, comma separated (e.g. banquet hall, mandap)" style="flex:1;min-width:240px">
-  <button class=btn onclick=add()>Add job</button><button class="btn o" onclick=preset() title="Bhubaneswar 15km, Puri 12km, Khordha 12km. Uses the query box, or the 6 default event queries if empty">Preset: BBSR · Puri · Khordha</button><a class="btn o" id=expall href="/api/export?job=all" style=text-decoration:none>Export all CSV</a></div>
- <details><summary style=cursor:pointer>More options</summary><div class=form>
-  <input id=country value=India style=width:120px placeholder=Country><input id=step value=1.5 style=width:120px placeholder="Grid step km"><input id=zoom value=15 style=width:90px placeholder=Zoom>
-  <input id=max_per_cell value=40 style=width:120px placeholder="Max/search"><input id=reviews value=0 style=width:120px placeholder="Reviews/place"><input id=proxy placeholder=Proxy style=width:200px><input id=patience value=15 title="Stop a query after N empty cells in a row (0 = never)" placeholder="Stop after N empty" style=width:150px>
-  <label><input type=checkbox id=stealth> Stealth</label><label><input type=checkbox id=show> Show browser</label></div></details>
- <table id=jobs></table></div>
-<div class=grid style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
- <div class=card><h3>Requests per minute <em>(orange ok · black failed)</em></h3><div class=rpm id=rpm></div><div class=sub id=rpml style="margin-top:8px;font-size:13px"></div></div>
- <div class=card><h3>Data completeness</h3><div id=comp></div></div>
- <div class=card><h3>Place insights</h3><div class=pills id=pills></div><div class=sub style="margin-bottom:10px">Rating bands</div><div id=bands></div><div class=sub style="margin:14px 0 10px">Top categories</div><div id=cats></div></div>
-</div>
-<div class=grid style="grid-template-columns:1fr 2fr">
- <div class=card><h3>Live log</h3><div class=scroll id=logs></div></div>
- <div class=card><h3>Collected places <input id=search placeholder=Filter oninput=load() style="float:right;padding:8px 16px"></h3><div class=scroll style=font:13px/1.4Inter;max-height:300px><table class=dt id=data></table></div></div>
-</div></div>
 <script>
-const $=i=>document.getElementById(i),api=(u,o)=>fetch(u,o).then(r=>r.json()),fmt=n=>(n??0).toLocaleString('en-IN'),post=u=>api(u,{method:'POST'}).then(refresh);
-const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));let J='all',jobs=[];const d=new Date();$('day').textContent=d.getDate();$('dm').innerHTML=d.toLocaleDateString('en-US',{weekday:'short'})+',<br>'+d.toLocaleDateString('en-US',{month:'long'});
-const bar=(l,v,p)=>`<div class=br><div class=bl><span>${l}</span><span>${v}</span></div><div class=bt><i style="width:${Math.max(p,1)}%"></i></div></div>`;
-async function preset(){const r=await api('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:$('queries').value.trim(),proxy:$('proxy').value,delay:$('delay').value,show:$('show').checked})});J=String(r.ids[0]);refresh()}
-async function add(){const b={};for(const i of['pincode','country','radius','step','zoom','max_per_cell','reviews','proxy','delay','patience'])b[i]=$(i).value;
- b.query=$('queries').value.trim();for(const i of['stealth','show'])b[i]=$(i).checked;
- if(!b.pincode||!b.query)return alert('Need a pincode and what to find');
- const r=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});J=String(r.id);refresh()}
-function play(){const run=jobs.filter(j=>j.status=='running');if(run.length)return run.forEach(j=>post(`/api/jobs/${j.id}/stop`));
- const t=J!='all'?J:jobs[0]?.id;if(!t){$('pincode').focus();return}post(`/api/jobs/${t}/run`)}
-async function refresh(){
- jobs=await api('/api/jobs');const sel=J=='all'?jobs:jobs.filter(j=>j.id==J);const running=jobs.some(j=>j.status=='running');
- $('jobsel').innerHTML='<option value=all>All jobs</option>'+jobs.map(j=>`<option value=${j.id} ${j.id==J?'selected':''}>#${j.id} · ${esc(JSON.parse(j.params).label||JSON.parse(j.params).pincode)}</option>`).join('');
- $('stat').className='pill '+(running?'run':'');$('stxt').textContent=running?'Running':'Idle';$('play').textContent=running?'■':'▶';
- const tot=sel.reduce((a,j)=>a+j.total,0),done=sel.reduce((a,j)=>a+j.done,0),err=sel.reduce((a,j)=>a+j.err,0),pc=tot?Math.round(done/tot*100):0;
- $('h1').innerHTML=running?`Scraping… ${pc}%<span>${fmt(done)} of ${fmt(tot)} searches done.</span>`:`Maps Scraper<span>Add a job and press start.</span>`;
- $('jobs').innerHTML='<tr><th>Job<th>Radius<th>Places<th>Searches<th>Failed<th>With phone<th>Status<th></tr>'+jobs.map(j=>{const p=JSON.parse(j.params);return`<tr class="${j.id==J?'sel':''}">
-  <td onclick="J='${j.id}';refresh()" style=cursor:pointer><b>${esc(p.label||p.pincode)}</b><br><span class=sub>${esc(p.queries.join(', '))}</span><td>${p.radius} km<td>${fmt(j.n)}
-  <td><div class=prog><small>${j.done}/${j.total}</small><div class=tr><i style="width:${j.total?j.done/j.total*100:0}%"></i></div></div><td>${j.err}<td>${j.ph}<td><span class="st ${j.status}">${j.status}</span>
-  <td style=white-space:nowrap><button class="btn sm" onclick="post('/api/jobs/${j.id}/run')">Run</button> <a class="btn o sm" style=text-decoration:none href="/api/export?job=${j.id}">CSV</a> <button class="btn o sm" onclick="confirm('Clear data?')&&post('/api/jobs/${j.id}/reset')">Reset</button> <button class="btn k sm" onclick="confirm('Delete job?')&&post('/api/jobs/${j.id}/delete')">✕</button></tr>`}).join('');
- const s=await api('/api/stats?job='+J),n=s.total||1,c=s.completeness,rok=s.req_total?Math.round(s.req_ok/s.req_total*100):0;
- const K=[['▣',fmt(s.total),'Places found',`${sel.length} job(s)`],['✓',fmt(done),'Searches done',pc+'% complete'],['!',`<span class=or>${fmt(err)}</span>`,'Failed','needs retry'],
-  ['◷',fmt(Math.max(tot-done,0)),'Pending','—'],['❖',fmt(c.phone),'With phone',fmt(c.website)+' with website'],['⇄',fmt(s.req_total),'Requests',`${rok}% ok · ${fmt(s.avg_ms)}ms`]];
- $('kpis').innerHTML=K.map(k=>`<div class="card kpi"><div class=ic>${k[0]}</div><b>${k[1]}</b><div class=l>${k[2]}</div><div class=s>${k[3]}</div></div>`).join('');
- const C=2*Math.PI*78;$('ring').innerHTML=`<circle cx=100 cy=100 r=98 fill=#111 /><circle cx=100 cy=100 r=78 fill=none stroke=#3a2a24 stroke-width=14 /><circle cx=100 cy=100 r=78 fill=none stroke=#d9694a stroke-width=14 stroke-linecap=round stroke-dasharray="${C*rok/100} ${C}" transform="rotate(-90 100 100)"/><text x=100 y=104 fill=#fff font-size=36 text-anchor=middle font-weight=600>${rok}%</text><text x=100 y=128 fill=#aaa font-size=13 text-anchor=middle>Fetch rate</text>`;
- const mx=Math.max(1,...s.rpm.map(r=>r.ok+r.bad));$('rpm').innerHTML=s.rpm.map(r=>`<div title="${r.ok} ok, ${r.bad} failed">${r.bad?'<u></u>':''}<i style="height:${r.ok/mx*140}px"></i></div>`).join('');
- const t=m=>new Date(m*60000).toTimeString().slice(0,5);$('rpml').textContent=s.rpm.length?`last ${s.rpm.length} active minute(s) · ${t(s.rpm[0].m)} → ${t(s.rpm.at(-1).m)}`:'No requests yet';
- $('comp').innerHTML=Object.entries(c).map(([k,v])=>bar(k,Math.round(v/n*100)+'%',v/n*100)).join('');
- $('pills').innerHTML=[['Avg rating',s.avg_rating??'–'],['Avg reviews',fmt(Math.round(s.avg_reviews||0))],['Max reviews',fmt(s.max_reviews)],['Has website',Math.round(c.website/n*100)+'%']].map(x=>`<div>${x[0]}<b>${x[1]}</b></div>`).join('');
- const rm=Math.max(1,...s.ratings.map(r=>r.v));$('bands').innerHTML=s.ratings.map(r=>bar(r.k+'.0 – '+r.k+'.9 ★',fmt(r.v),r.v/rm*100)).join('');
- const cm=Math.max(1,...s.categories.map(r=>r.v));$('cats').innerHTML=s.categories.map(r=>bar(r.k,fmt(r.v),r.v/cm*100)).join('');
- const l=await api('/api/logs?job='+J);$('logs').innerHTML=l.map(x=>`<div class=${x.level}>${x.ts} ${esc(x.msg)}</div>`).join('');load()}
-async function load(){const p=await api(`/api/places?job=${J}&q=${encodeURIComponent($('search').value)}`);
- $('data').innerHTML='<tr><th>Name<th>Category<th>★<th>Phone<th>Address</tr>'+p.map(x=>`<tr><td>${esc(x.name)}<td>${esc(x.category)}<td>${x.rating??''}<td>${esc(x.phone)}<td>${esc(x.address)}</tr>`).join('')}
-refresh();setInterval(refresh,4000);
+const $=i=>document.getElementById(i),api=(u,o)=>fetch(u,o).then(r=>r.json()),fmt=n=>(n??0).toLocaleString('en-IN');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const AREAS=[['quick',0,'Just this spot','1 search · fastest'],['sweep',3,'Nearby','3 km'],['sweep',5,'Wider','5 km'],['sweep',10,'Whole city','10 km']];
+let J='all',jobs=[],area=0;
+function drawAreas(){$('areas').innerHTML=AREAS.map((a,i)=>`<button class="chip ${i===area?'on':''}" onclick="area=${i};drawAreas()">${a[2]}<small>${a[3]}</small></button>`).join('');
+ const a=AREAS[area],q=$('queries').value.split(',').filter(x=>x.trim()).length||1;
+ $('est').textContent=a[0]==='quick'?`Loads Google's full list for each thing you search (up to ~120 places each).`:`Covers ${a[1]} km around the spot with several searches per thing, each loading up to ~120 places. Takes longer.`}
+$('queries').addEventListener('input',drawAreas);
+async function add(){const b={};for(const i of['pincode','country','step','zoom','max_per_cell','reviews','proxy','delay','patience'])b[i]=$(i).value.trim();
+ b.query=$('queries').value.trim();for(const i of['stealth','show'])b[i]=$(i).checked;const a=AREAS[area];b.mode=a[0];b.radius=a[0]==='quick'?2:a[1];
+ if(!b.query){$('queries').focus();return}if(!b.pincode){$('pincode').focus();return}
+ $('startb').disabled=true;try{const r=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});J=String(r.id)}finally{$('startb').disabled=false}refresh()}
+const post=u=>api(u,{method:'POST'}).then(refresh);
+function pick(id){J=String(id);refresh()}
+function jobRow(j){const p=JSON.parse(j.params),live=j.status==='running'||j.status==='queued',m=(j.note||'').match(/place (\d+) of (\d+)/);
+ const pct=j.total?Math.min(100,Math.round((j.done+(m?m[1]/m[2]:0))/j.total*100)):0;
+ const where=p.label||p.pincode,size=p.mode==='quick'?'one search':p.radius+' km';
+ const note=j.note||(j.status==='queued'?'Waiting for the search before it':j.total?`${j.done} of ${j.total} searches done`:'');
+ return `<div class="job ${String(j.id)===J?'sel':''}" onclick="pick(${j.id})"><div><b>${esc(p.queries.join(', '))}</b><div class=q>${esc(where)} · ${esc(size)} · ${fmt(j.n)} places, ${fmt(j.ph)} with phone</div></div>
+ <div><div class=bar><i style="width:${live?Math.max(3,pct):j.status==='finished'?100:pct}%"></i></div><div class=note>${esc(note)}</div></div>
+ <div class=acts onclick="event.stopPropagation()"><span class="st ${j.status}">${esc(j.status)}</span>${live?`<button class="btn o sm" onclick="post('/api/jobs/${j.id}/stop')">Stop</button>`:`<button class="btn o sm" onclick="post('/api/jobs/${j.id}/run')" title="Already saved places are skipped">${j.status==='finished'?'Run again':'Resume'}</button>`}<a class="btn o sm" href="/api/export?job=${j.id}">CSV</a><button class=x title="Delete this search and its places" onclick="confirm('Delete this search and its places?')&&post('/api/jobs/${j.id}/delete')">✕</button></div></div>`}
+async function refresh(){jobs=await api('/api/jobs');const running=jobs.some(j=>j.status==='running');
+ $('stat').className='pill '+(running?'run':'');$('stxt').textContent=running?'Searching…':jobs.some(j=>j.status==='queued')?'Queued':'Idle';
+ if(J!=='all'&&!jobs.some(j=>String(j.id)===J))J='all';
+ $('jobs').innerHTML=jobs.length?jobs.map(jobRow).join(''):'<div class=empty>No searches yet. Start one above.</div>';
+ const s=await api('/api/stats?job='+J),c=s.completeness||{},n=s.total||0,pc=v=>n?Math.round(v/n*100)+'%':'–';
+ $('kpis').innerHTML=[['Places found',fmt(n)],['With phone',`${fmt(c.phone)} <small style="font-size:13px;color:var(--mute);font-weight:500">${pc(c.phone)}</small>`],['With website',`${fmt(c.website)} <small style="font-size:13px;color:var(--mute);font-weight:500">${pc(c.website)}</small>`],['Average rating',s.avg_rating??'–']].map(k=>`<div class=kpi><span>${k[0]}</span><b>${k[1]}</b></div>`).join('');
+ const sel=jobs.find(j=>String(j.id)===J);$('rtitle').textContent=sel?'Results: '+JSON.parse(sel.params).queries.join(', '):'All results';$('exp').href='/api/export?job='+J;
+ const l=await api('/api/logs?job='+J);$('logs').innerHTML=l.map(x=>`<div class=${x.level}>${x.ts} ${esc(x.msg)}</div>`).join('')||'<span class=hint>Nothing yet.</span>';load()}
+async function load(){const p=await api(`/api/places?job=${J}&q=${encodeURIComponent($('search').value)}`);$('rcount').textContent=p.length>=500?'showing the top 500 (download for all)':p.length+' shown';
+ $('data').innerHTML=p.length?'<tr><th>Name<th>Category<th>Rating<th>Phone<th>Website<th>Address</tr>'+p.map(x=>`<tr><td><b>${esc(x.name)}</b><td>${esc(x.category)}<td class=n>${x.rating?'★ '+x.rating+(x.reviews_count?` <span class=hint>(${fmt(x.reviews_count)})</span>`:''):''}<td class=n>${esc(x.phone)}<td>${x.website?`<a href="${esc(x.website)}" target=_blank rel=noopener>${esc(x.website.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])}</a>`:''}<td>${esc(x.address)}</tr>`).join(''):'<tr><td class=empty>No places yet.</td></tr>'}
+drawAreas();refresh();setInterval(refresh,3000);
 </script>
 """
 
@@ -571,7 +596,7 @@ def cli_run(argv):
 
     jids, labels = [], {}
     for pin, label, radius in areas:
-        base = dict(pincode=pin, label=label, country="India", radius=radius, step=1.5, zoom=15, max_per_cell=40, reviews=0,
+        base = dict(pincode=pin, label=label, country="India", radius=radius, step=1.5, zoom=15, max_per_cell=120, reviews=0,
                     stealth=False, headless=not a.show, proxy=a.proxy, delay=a.delay, patience=a.patience, queries=qs)
         jid = None
         if a.resume:

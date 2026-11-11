@@ -32,17 +32,47 @@ def _accept_consent(page):
     """Dismiss the cookie/consent wall (shows up mostly in the EU)."""
     for label in ("Accept all", "Reject all", "I agree"):
         try:
-            page.locator(f'button:has-text("{label}")').first.click(timeout=1500)
-            page.wait_for_timeout(800)
-            return page
+            btn = page.locator(f'button:has-text("{label}")')
+            if btn.count():  # check without waiting: most pages have no consent wall, so this costs nothing
+                btn.first.click(timeout=1500)
+                page.wait_for_timeout(800)
+                return page
         except Exception:
             pass
     return page
 
 
 
-def make_scroll_action(max_results):
-    """Scroll Google Maps results until enough unique places load or results stop growing."""
+# Runs in the page: scrolls the results list to its end the way a person would, and reports what is loaded.
+# Google Maps only loads the next ~20 results when the list's own scroll box reaches its bottom. That box is
+# usually the feed's parent (not the feed itself), so find whichever ancestor actually scrolls.
+_SCROLL_JS = """(feedSel) => {
+  const feed = document.querySelector(feedSel);
+  if (!feed) return {count: 0, end: false, found: false};
+  let box = feed;
+  while (box && box !== document.body) {
+    const s = getComputedStyle(box);
+    if (/(auto|scroll)/.test(s.overflowY) && box.scrollHeight > box.clientHeight + 5) break;
+    box = box.parentElement;
+  }
+  if (!box || box === document.body) box = feed;
+  const links = [...new Set([...feed.querySelectorAll('a[href*="/maps/place/"]')].map(a => a.href))];
+  const last = [...feed.querySelectorAll('a[href*="/maps/place/"]')].pop();
+  if (last) last.scrollIntoView({block: 'end'});
+  box.scrollTop = box.scrollHeight;
+  const text = (feed.innerText || '').toLowerCase();
+  const end = text.includes("reached the end of the list") || text.includes("end of the list") || !!feed.querySelector('.HlvSq');
+  const r = box.getBoundingClientRect();
+  return {count: links.length, end, found: true,
+          x: Math.round(r.left + r.width / 2), y: Math.round(Math.min(r.bottom - 40, window.innerHeight - 40))};
+}"""
+
+
+def make_scroll_action(max_results, on_progress=None):
+    """Scroll the Google Maps results list until it ends (Google stops at about 120) or max_results are loaded.
+
+    on_progress(count, done) is called whenever the number of loaded places changes, and once at the end.
+    """
 
     def action(page):
         _accept_consent(page)
@@ -50,78 +80,48 @@ def make_scroll_action(max_results):
         try:
             page.wait_for_selector(FEED, timeout=15000)
         except Exception:
-            return page  # Google may have opened a single-place page
+            return page  # Google opened a single place page instead of a list
 
-        feed = page.locator(FEED).first
-        last_count = -1
-        stale = 0
-        rounds = 0
-
-        # Safety limit prevents endless scrolling.
-        max_rounds = max(40, min(250, max_results * 2))
-
-        while rounds < max_rounds:
+        count, best, idle_ms, end = 0, 0, 0, False
+        deadline = 240_000  # never more than 4 minutes on one list
+        spent = 0
+        while spent < deadline:
             try:
-                hrefs = page.locator(
-                    f'{FEED} a[href*="/maps/place/"]'
-                ).evaluate_all(
-                    "(els) => [...new Set(els.map(a => a.href).filter(Boolean))]"
-                )
-                count = len(hrefs)
+                st = page.evaluate(_SCROLL_JS, FEED)
             except Exception:
                 break
-
-            print(
-                f"\rGoogle Maps loaded {count} unique place links "
-                f"(target: {max_results})",
-                end="",
-                flush=True,
-            )
-
-            if count >= max_results:
-                break
-
+            count, end = st.get("count", 0), st.get("end", False)
+            # A real wheel over the list as well: some builds only load more on user-like scroll events.
             try:
-                if page.get_by_text(
-                    "You've reached the end of the list",
-                    exact=False
-                ).count():
-                    break
+                if st.get("found"):
+                    page.mouse.move(st["x"], st["y"])
+                    page.mouse.wheel(0, 3000)
             except Exception:
                 pass
-
-            if count == last_count:
-                stale += 1
-            else:
-                stale = 0
-
-            # Stop only after several scrolls produce no new listings.
-            if stale >= 8:
+            if count > best:
+                best, idle_ms = count, 0
+                if on_progress:
+                    on_progress(count, False)
+                print(f"\rGoogle Maps list: {count} places loaded (target {max_results})", end="", flush=True)
+            if count >= max_results or end:
                 break
-
-            last_count = count
-
-            try:
-                feed.evaluate(
-                    "(el) => { el.scrollTop = el.scrollHeight; }"
-                )
-                feed.hover()
-                page.mouse.wheel(0, 2500)
-            except Exception:
+            # Nothing new yet: wait a bit longer each time, and nudge the list up and down to wake the loader.
+            if idle_ms >= 15_000:
+                break  # 15 s without a single new result: the list is done
+            if idle_ms and idle_ms % 3000 < 1000:
                 try:
-                    page.evaluate(
-                        """() => {
-                            const el = document.querySelector('div[role="feed"]');
-                            if (el) el.scrollTop = el.scrollHeight;
-                        }"""
-                    )
+                    page.mouse.wheel(0, -600)
+                    page.wait_for_timeout(250)
+                    page.mouse.wheel(0, 3000)
                 except Exception:
                     pass
+            page.wait_for_timeout(1000)
+            idle_ms += 1000
+            spent += 1000
 
-            page.wait_for_timeout(1800)
-            rounds += 1
-
-        print(f"\nScrolling finished. Unique place links loaded: {count}")
+        if on_progress:
+            on_progress(count, True)
+        print(f"\nGoogle Maps list finished: {count} places loaded{' (end of list)' if end else ''}")
         return page
 
     return action
@@ -229,7 +229,7 @@ def parse_place(page, url, n_reviews=0):
 # --------------------------------------------------------------------------
 # Main flow
 # --------------------------------------------------------------------------
-def scrape(query=None, url=None, max_results=20, n_reviews=0, headless=True, stealth=False, proxy=None):
+def scrape(query=None, url=None, max_results=120, n_reviews=0, headless=True, stealth=False, proxy=None):
     Session = StealthySession if stealth else DynamicSession
     kwargs = dict(headless=headless)  # no network_idle: Maps never goes idle
     if proxy:
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Google Maps scraper (Scrapling)")
     ap.add_argument("query", nargs="?", help='e.g. "coffee shops in Thane"')
     ap.add_argument("--url", help="scrape one specific place URL instead of searching")
-    ap.add_argument("-n", "--max-results", type=int, default=20)
+    ap.add_argument("-n", "--max-results", type=int, default=120, help="Google shows at most about 120 per search")
     ap.add_argument("--reviews", type=int, default=0, metavar="N", help="also grab up to N reviews per place")
     ap.add_argument("--stealth", action="store_true", help="use StealthySession (anti-bot hardened)")
     ap.add_argument("--no-headless", action="store_true")
