@@ -5,12 +5,10 @@ Files
 - run_mumbai_scrape.bat: double-click launcher.
 
 Install/use
-1. Copy both files into:
-   E:\Solist Project\map_scrapper\
-   beside gmaps_scraper.py.
-2. Make sure your existing .venv and Scrapling installation work.
-3. Double-click run_mumbai_scrape.bat.
-4. Leave the console open until "ALL QUERIES FINISHED."
+1. Run setup.bat (Windows) or ./setup.sh (Ubuntu/macOS) in this folder once.
+2. Double-click run_mumbai_scrape.bat (Ubuntu/macOS: ./run_mumbai_scrape.sh), or use
+   "Run Mumbai sweets sweep" on the Maps Scraper page in Solist Hub.
+3. Leave the console open until "ALL QUERIES FINISHED."
 
 Output
 mumbai_scrape_output\

@@ -1,8 +1,8 @@
 # Nykaa Studio - scrape, convert, review, export (all from one browser page)
 
 ## Start (Windows, no terminal)
-1. Unzip so the folder sits **inside your scraper project**:  `E:\Solist Project\nykaa-scraper\nykaa_mapper\` (next to `crawler.py` and `dashboard.py`).
-2. Double-click **start.bat**. First time only it installs pandas. Your browser opens **http://localhost:8766**.
+1. Run **setup.bat** once (Ubuntu/macOS: `./setup.sh`), or start it from Solist Hub, which does this for you.
+2. Double-click **start.bat** (Ubuntu/macOS: `./start.sh`). Your browser opens **http://localhost:8766**.
 3. Leave the black window open while you work; close it to stop.
 
 ## What the page does
@@ -26,10 +26,9 @@ Folders it creates next to `crawler.py`: `exports\`, `inbox\`, `logs\studio.log`
 
 # Command-line version (optional)
 ## Windows quick start (no typing)
-1. Unzip this folder **inside** `E:\Solist Project\nykaa-scraper` (so it sits next to `nykaa_products.csv`).
-2. Double-click **setup.bat** (once). It reuses your scraper's `.venv` and installs pandas.
-3. Drag **nykaa_products.csv** onto **run.bat**. Results open in the `out` folder.
-4. If columns are not found, drag the CSV onto **inspect.bat** and send the result to Claude.
+1. Double-click **setup.bat** (once).
+2. Drag your products CSV onto **run.bat**. Results open in the `out` folder.
+3. If columns are not found, drag the CSV onto **inspect.bat** to see which columns it detected.
 
 Turns the products your scraper saved into a file in the **redSales import template** column order:
 
@@ -42,9 +41,8 @@ Turns the products your scraper saved into a file in the **redSales import templ
 | `rules.py` | the keyword rules that pick the **item name** (edit this to teach it new words) |
 | `taxonomy.csv` | the 136-row tree: category > sub category > item name, with 8-digit HSN and GST % |
 
-## Run it (PowerShell, in `E:\Solist Project\nykaa-scraper`, venv active)
+## Run it from a terminal (in this folder, with its environment active)
 ```
-pip install pandas
 python mapper.py nykaa_products.csv --inspect          # check it found your columns
 python mapper.py nykaa_products.csv                    # writes out\import_ready.csv + out\review.csv
 python mapper.py --db nykaa.db --table products        # same, straight from the database

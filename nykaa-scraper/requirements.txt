@@ -1,7 +1,6 @@
-# Nykaa Scraper (dashboard.py, crawler.py, gui.py)
+# Nykaa Scraper (dashboard.py, crawler.py)
 # Pinned to the versions in the working Windows .venv (Python 3.14). Needs Python 3.10+.
 # After installing, run `scrapling install` once to download the browsers (setup.sh / setup.bat do this).
-# gui.py also needs Tk: on Ubuntu `sudo apt install python3-tk` (included with Python on Windows).
 scrapling[fetchers]==0.4.15
 playwright==1.63.0
 patchright==1.63.0
