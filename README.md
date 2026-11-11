@@ -1,7 +1,24 @@
 # Solist Project
 
-My local tools in one repo. Solist Hub starts and stops each one, shows its log and opens its page.
-It all runs on your own machine, on Windows, macOS or Linux.
+A set of local tools with one dashboard to run them. **Solist Hub** starts and stops each tool, shows its
+live log and opens its page in the same window. Everything runs on your own machine, on Windows, macOS or Linux.
+Nothing is sent to a server.
+
+![Solist Hub dashboard](docs/screenshots/dashboard-light.png)
+
+## What the Hub shows
+
+- **Sidebar** with every tool and whether it is on, starting or still needs setup.
+- **KPI cards** for tools running, tools ready, PDF tools and places found.
+- **Hub health** gauge, an **analytics** chart of events per tool, a **status heatmap** and an events breakdown.
+- **Tool pages** with one-time setup steps, stats, quick actions and a live log. When a tool is running, its own page opens inside the Hub.
+- **Light and dark** themes. The tools pick up the same look.
+
+| Dark theme | Tool page | Phone |
+|---|---|---|
+| ![Dark theme](docs/screenshots/dashboard-dark.png) | ![Tool page](docs/screenshots/tool-page.png) | ![Phone layout](docs/screenshots/phone.png) |
+
+## The tools
 
 | Folder | Tool | Port | Needs |
 |---|---|---|---|
